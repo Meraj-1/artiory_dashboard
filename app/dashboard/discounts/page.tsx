@@ -1,0 +1,191 @@
+"use client";
+import { useState } from "react";
+
+const card = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
+
+type Coupon = {
+  id: number; code: string; type: "percent" | "flat"; value: number;
+  minOrder: number; uses: number; maxUses: number; expiry: string;
+  active: boolean; description: string;
+};
+
+const initialCoupons: Coupon[] = [
+  { id:1, code:"WELCOME20",  type:"percent", value:20, minOrder:1000,  uses:34,  maxUses:100, expiry:"2025-03-31", active:true,  description:"New customer welcome discount" },
+  { id:2, code:"FLAT500",    type:"flat",    value:500,minOrder:3000,  uses:18,  maxUses:50,  expiry:"2025-02-28", active:true,  description:"Flat ₹500 off on orders above ₹3000" },
+  { id:3, code:"ART15",      type:"percent", value:15, minOrder:2000,  uses:62,  maxUses:200, expiry:"2025-04-30", active:true,  description:"Art lovers special" },
+  { id:4, code:"FESTIVE30",  type:"percent", value:30, minOrder:5000,  uses:200, maxUses:200, expiry:"2025-01-15", active:false, description:"Festive season offer — expired" },
+  { id:5, code:"VIP1000",    type:"flat",    value:1000,minOrder:8000, uses:8,   maxUses:20,  expiry:"2025-06-30", active:true,  description:"VIP customer exclusive" },
+];
+
+const emptyForm = { code:"", type:"percent" as "percent"|"flat", value:"", minOrder:"", maxUses:"", expiry:"", description:"" };
+
+export default function DiscountsPage() {
+  const [coupons, setCoupons] = useState(initialCoupons);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState(emptyForm);
+  const [error, setError] = useState("");
+
+  function toggle(id: number) { setCoupons((p) => p.map((c) => c.id === id ? { ...c, active: !c.active } : c)); }
+  function deleteCoupon(id: number) { setCoupons((p) => p.filter((c) => c.id !== id)); }
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.code.trim()) { setError("Coupon code is required"); return; }
+    if (coupons.find((c) => c.code === form.code.toUpperCase())) { setError("Code already exists"); return; }
+    setCoupons((p) => [...p, {
+      id: Date.now(), code: form.code.toUpperCase(), type: form.type,
+      value: Number(form.value), minOrder: Number(form.minOrder) || 0,
+      uses: 0, maxUses: Number(form.maxUses) || 999,
+      expiry: form.expiry || "2025-12-31", active: true, description: form.description,
+    }]);
+    setForm(emptyForm);
+    setShowForm(false);
+    setError("");
+  }
+
+  const inputStyle = { backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" };
+  const inputClass = "w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 placeholder:text-[color:var(--txt-3)]";
+
+  const totalSavings = coupons.reduce((s, c) => s + (c.type === "flat" ? c.value * c.uses : 0), 0);
+  const activeCoupons = coupons.filter((c) => c.active).length;
+
+  return (
+    <div className="space-y-5">
+      {/* Summary */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[
+          { label: "Total Coupons",   value: coupons.length,    color: "#8b5cf6" },
+          { label: "Active",          value: activeCoupons,     color: "#22c55e" },
+          { label: "Total Uses",      value: coupons.reduce((s,c)=>s+c.uses,0), color: "#3b82f6" },
+          { label: "Savings Given",   value: `₹${totalSavings.toLocaleString()}`, color: "#f59e0b" },
+        ].map((s) => (
+          <div key={s.label} style={card} className="rounded-2xl p-4">
+            <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--txt-3)" }}>{s.label}</p>
+            <p className="text-2xl font-bold mt-1" style={{ color: "var(--txt-1)" }}>{s.value}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold" style={{ color: "var(--txt-1)" }}>Coupon Codes</h3>
+        <button onClick={() => setShowForm(!showForm)}
+          className="px-4 py-2 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition-colors">
+          {showForm ? "✕ Cancel" : "+ Create Coupon"}
+        </button>
+      </div>
+
+      {/* Create Form */}
+      {showForm && (
+        <div style={card} className="rounded-2xl p-6">
+          <h3 className="font-semibold mb-4" style={{ color: "var(--txt-1)" }}>New Coupon</h3>
+          {error && (
+            <div className="mb-4 rounded-xl px-4 py-2.5 text-sm text-rose-500" style={{ backgroundColor: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.2)" }}>{error}</div>
+          )}
+          <form onSubmit={handleCreate} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Coupon Code *</label>
+              <input value={form.code} onChange={(e) => setForm((p) => ({ ...p, code: e.target.value.toUpperCase() }))}
+                placeholder="e.g. SAVE20" style={inputStyle} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Discount Type</label>
+              <select value={form.type} onChange={(e) => setForm((p) => ({ ...p, type: e.target.value as "percent"|"flat" }))}
+                style={inputStyle} className={inputClass}>
+                <option value="percent">Percentage (%)</option>
+                <option value="flat">Flat Amount (₹)</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>
+                {form.type === "percent" ? "Discount %" : "Discount ₹"} *
+              </label>
+              <input type="number" min="1" value={form.value} onChange={(e) => setForm((p) => ({ ...p, value: e.target.value }))}
+                placeholder={form.type === "percent" ? "e.g. 20" : "e.g. 500"} style={inputStyle} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Min Order (₹)</label>
+              <input type="number" min="0" value={form.minOrder} onChange={(e) => setForm((p) => ({ ...p, minOrder: e.target.value }))}
+                placeholder="e.g. 2000" style={inputStyle} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Max Uses</label>
+              <input type="number" min="1" value={form.maxUses} onChange={(e) => setForm((p) => ({ ...p, maxUses: e.target.value }))}
+                placeholder="e.g. 100" style={inputStyle} className={inputClass} />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Expiry Date</label>
+              <input type="date" value={form.expiry} onChange={(e) => setForm((p) => ({ ...p, expiry: e.target.value }))}
+                style={inputStyle} className={inputClass} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--txt-3)" }}>Description</label>
+              <input value={form.description} onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                placeholder="Internal note about this coupon" style={inputStyle} className={inputClass} />
+            </div>
+            <div className="sm:col-span-2 flex justify-end">
+              <button type="submit" className="px-6 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl text-sm font-medium transition-colors">
+                Create Coupon
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* Coupons List */}
+      <div className="space-y-3">
+        {coupons.map((c) => {
+          const usePct = Math.round((c.uses / c.maxUses) * 100);
+          const expired = new Date(c.expiry) < new Date();
+          return (
+            <div key={c.id} style={{ ...card, opacity: !c.active ? 0.6 : 1 }} className="rounded-2xl p-5">
+              <div className="flex items-start justify-between gap-4 flex-wrap">
+                <div className="flex items-center gap-4">
+                  <div className="px-4 py-2 rounded-xl font-mono font-bold text-sm" style={{ backgroundColor: "rgba(139,92,246,0.12)", color: "#8b5cf6" }}>
+                    {c.code}
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-lg font-bold" style={{ color: "var(--txt-1)" }}>
+                        {c.type === "percent" ? `${c.value}% OFF` : `₹${c.value} OFF`}
+                      </span>
+                      {c.minOrder > 0 && (
+                        <span className="text-xs" style={{ color: "var(--txt-3)" }}>on orders above ₹{c.minOrder.toLocaleString()}</span>
+                      )}
+                      {expired && <span className="text-xs px-2 py-0.5 rounded-full" style={{ backgroundColor: "rgba(239,68,68,0.1)", color: "#ef4444" }}>Expired</span>}
+                    </div>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--txt-3)" }}>{c.description}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  {/* Toggle */}
+                  <button onClick={() => toggle(c.id)}
+                    className="relative w-11 h-6 rounded-full transition-colors"
+                    style={{ backgroundColor: c.active ? "#8b5cf6" : "var(--border)" }}>
+                    <span className="absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all"
+                      style={{ left: c.active ? "22px" : "2px" }} />
+                  </button>
+                  <button onClick={() => deleteCoupon(c.id)} className="text-xs px-3 py-1.5 rounded-lg text-rose-500 transition-colors"
+                    style={{ border: "1px solid rgba(239,68,68,0.2)" }}>
+                    Delete
+                  </button>
+                </div>
+              </div>
+              {/* Usage bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-xs mb-1.5" style={{ color: "var(--txt-3)" }}>
+                  <span>{c.uses} / {c.maxUses} uses</span>
+                  <span>Expires: {c.expiry}</span>
+                </div>
+                <div className="h-1.5 rounded-full" style={{ backgroundColor: "var(--base)" }}>
+                  <div className="h-full rounded-full transition-all"
+                    style={{ width: `${usePct}%`, backgroundColor: usePct >= 90 ? "#ef4444" : usePct >= 60 ? "#f59e0b" : "#8b5cf6" }} />
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

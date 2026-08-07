@@ -1,0 +1,67 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ── Light tokens ── */
+:root {
+  --base:        #f4f4f5;
+  --card:        #ffffff;
+  --card-hover:  #f8f8f9;
+  --sidebar:     #1a1a2e;
+  --border:      #e4e4e7;
+  --border-sub:  #f0f0f1;
+  --txt-1:       #09090b;
+  --txt-2:       #52525b;
+  --txt-3:       #a1a1aa;
+  --ring:        #7c3aed;
+}
+
+/* ── Dark tokens — pure black ── */
+.dark {
+  --base:        #000000;
+  --card:        #0a0a0a;
+  --card-hover:  #111111;
+  --sidebar:     #050505;
+  --border:      #1f1f1f;
+  --border-sub:  #141414;
+  --txt-1:       #fafafa;
+  --txt-2:       #a1a1aa;
+  --txt-3:       #52525b;
+  --ring:        #7c3aed;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* ── Base styles ── */
+body {
+  background-color: var(--base);
+  color: var(--txt-1);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* ── Utility classes driven by tokens ── */
+.bg-base        { background-color: var(--base); }
+.bg-card        { background-color: var(--card); }
+.bg-card-hover  { background-color: var(--card-hover); }
+.bg-sidebar     { background-color: var(--sidebar); }
+.border-token   { border-color: var(--border); }
+.border-sub     { border-color: var(--border-sub); }
+.text-1         { color: var(--txt-1); }
+.text-2         { color: var(--txt-2); }
+.text-3         { color: var(--txt-3); }
+
+/* ── Smooth theme transition ── */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, box-shadow;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+.dark ::-webkit-scrollbar-thumb { background: #1f1f1f; }
