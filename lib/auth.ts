@@ -35,3 +35,5 @@ export function validateCredentials(email: string, password: string) {
     password === process.env.NEXT_PUBLIC_ADMIN_PASSWORD
   );
 }
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app";

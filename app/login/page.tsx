@@ -18,7 +18,7 @@ export default function LoginPage() {
     setError("");
     if (validateCredentials(email, password)) {
       try {
-        const res = await fetch("http://localhost:5000/api/auth/admin-login", {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/auth/admin-login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ email, password }),

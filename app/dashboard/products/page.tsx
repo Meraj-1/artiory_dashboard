@@ -45,7 +45,7 @@ function renderProductImage(image: Product["image"]) {
     let src = image || "";
 
     if (!(src.startsWith("http") || src.startsWith("data:") || src.startsWith("blob:"))) {
-      const origin = typeof window !== "undefined" ? window.location.origin : "http://localhost:5000";
+      const origin = typeof window !== "undefined" ? window.location.origin : `${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}`;
       const path = src.startsWith("/") ? src : `/${src}`;
       src = `${origin}${path}`;
     }
@@ -121,7 +121,7 @@ export default function ProductsPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:5000/api/products/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products/${id}`,
         {
           method: "DELETE",
           headers,
@@ -187,7 +187,7 @@ export default function ProductsPage() {
     try {
       const action = newStatus === "Published" ? "publish" : "unpublish";
       const response = await fetch(
-        `http://localhost:5000/api/products/${product.id}/${action}`,
+        `${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products/${product.id}/${action}`,
         {
           method: "PATCH",
           headers,
@@ -230,7 +230,7 @@ export default function ProductsPage() {
 
       try {
         const response = await fetch(
-          "http://localhost:5000/api/products/dashboard",
+          `${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products/dashboard`,
           {
             method: "GET",
             headers,

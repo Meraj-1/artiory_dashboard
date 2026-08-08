@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAuthToken } from "@/lib/auth";
 
 const card = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
 
@@ -8,19 +9,6 @@ type Customer = {
   city: string; orders: number; spent: number; lastOrder: string;
   status: "Active" | "Inactive" | "VIP"; joined: string; avatar: string;
 };
-
-const allCustomers: Customer[] = [
-  { id:1, name:"Rahul Sharma",   email:"rahul@example.com",   phone:"+91 98765 43210", city:"Mumbai",    orders:8,  spent:62000, lastOrder:"Jan 10", status:"VIP",      joined:"Mar 2024", avatar:"R" },
-  { id:2, name:"Priya Mehta",    email:"priya@example.com",   phone:"+91 87654 32109", city:"Delhi",     orders:5,  spent:38500, lastOrder:"Jan 9",  status:"Active",   joined:"May 2024", avatar:"P" },
-  { id:3, name:"Arjun Nair",     email:"arjun@example.com",   phone:"+91 76543 21098", city:"Bangalore", orders:3,  spent:14200, lastOrder:"Jan 9",  status:"Active",   joined:"Jul 2024", avatar:"A" },
-  { id:4, name:"Sneha Patel",    email:"sneha@example.com",   phone:"+91 65432 10987", city:"Ahmedabad", orders:2,  spent:9800,  lastOrder:"Jan 8",  status:"Active",   joined:"Aug 2024", avatar:"S" },
-  { id:5, name:"Vikram Singh",   email:"vikram@example.com",  phone:"+91 54321 09876", city:"Jaipur",    orders:1,  spent:3200,  lastOrder:"Jan 7",  status:"Inactive", joined:"Sep 2024", avatar:"V" },
-  { id:6, name:"Ananya Roy",     email:"ananya@example.com",  phone:"+91 43210 98765", city:"Kolkata",   orders:6,  spent:52000, lastOrder:"Jan 6",  status:"VIP",      joined:"Apr 2024", avatar:"A" },
-  { id:7, name:"Karan Joshi",    email:"karan@example.com",   phone:"+91 32109 87654", city:"Pune",      orders:4,  spent:28000, lastOrder:"Dec 28", status:"Active",   joined:"Jun 2024", avatar:"K" },
-  { id:8, name:"Meera Iyer",     email:"meera@example.com",   phone:"+91 21098 76543", city:"Chennai",   orders:7,  spent:71000, lastOrder:"Dec 25", status:"VIP",      joined:"Feb 2024", avatar:"M" },
-  { id:9, name:"Rohan Das",      email:"rohan@example.com",   phone:"+91 10987 65432", city:"Hyderabad", orders:2,  spent:11200, lastOrder:"Dec 20", status:"Active",   joined:"Oct 2024", avatar:"R" },
-  { id:10,name:"Divya Kapoor",   email:"divya@example.com",   phone:"+91 09876 54321", city:"Lucknow",   orders:1,  spent:4500,  lastOrder:"Dec 15", status:"Inactive", joined:"Nov 2024", avatar:"D" },
-];
 
 const statusBadge: Record<string, { bg: string; color: string }> = {
   VIP:      { bg: "rgba(234,179,8,0.12)",   color: "#eab308" },
@@ -31,10 +19,43 @@ const statusBadge: Record<string, { bg: string; color: string }> = {
 const avatarColors = ["#8b5cf6","#3b82f6","#22c55e","#f59e0b","#ef4444","#06b6d4","#ec4899"];
 
 export default function CustomersPage() {
+  const [allCustomers, setAllCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState("All");
   const [selected, setSelected] = useState<Customer | null>(null);
   const [sortKey, setSortKey] = useState<"spent" | "orders" | "name">("spent");
+
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const token = getAuthToken();
+        const headers: Record<string, string> = {
+          Accept: "application/json",
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/customers`, { headers });
+        const json = await res.json();
+
+        if (json.success && Array.isArray(json.data)) {
+          setAllCustomers(json.data);
+        } else {
+          setError(json.message || "Failed to load customers data");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Error connecting to customers backend API");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCustomers();
+  }, []);
 
   const filtered = allCustomers
     .filter((c) => {
@@ -48,13 +69,21 @@ export default function CustomersPage() {
 
   const totalRevenue = allCustomers.reduce((s, c) => s + c.spent, 0);
   const vipCount     = allCustomers.filter((c) => c.status === "VIP").length;
-  const avgSpend     = Math.round(totalRevenue / allCustomers.length);
+  const avgSpend     = allCustomers.length > 0 ? Math.round(totalRevenue / allCustomers.length) : 0;
 
   const filterBtn = (s: string) => ({
     backgroundColor: filter === s ? "var(--txt-1)" : "var(--card)",
     color: filter === s ? "var(--card)" : "var(--txt-2)",
     border: "1px solid var(--border)",
   });
+
+  if (loading) {
+    return <div className="text-center py-24 text-sm" style={{ color: "var(--txt-3)" }}>Loading customers data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-24 text-sm font-medium text-rose-500">⚠ {error}</div>;
+  }
 
   return (
     <div className="space-y-5">

@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAuthToken } from "@/lib/auth";
 
 const card = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
 
@@ -22,20 +23,6 @@ function now() {
   return new Date().toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-const seed: Omit<Item, "status">[] = [
-  { sku: "BAG-001",   name: "Floral Backpack",        type: "Product", stock: 12, reorderLevel: 5,  lastUpdated: "10 Jan 2025, 10:30 AM" },
-  { sku: "BAG-002",   name: "Tote Bag Classic",        type: "Product", stock: 3,  reorderLevel: 5,  lastUpdated: "09 Jan 2025, 02:15 PM" },
-  { sku: "STA-001",   name: "Sketchbook A4",           type: "Product", stock: 0,  reorderLevel: 10, lastUpdated: "08 Jan 2025, 11:00 AM" },
-  { sku: "STA-002",   name: "Pencil Box Wooden",       type: "Product", stock: 20, reorderLevel: 8,  lastUpdated: "07 Jan 2025, 09:45 AM" },
-  { sku: "STA-003",   name: "Watercolor Diary",        type: "Product", stock: 4,  reorderLevel: 5,  lastUpdated: "06 Jan 2025, 04:00 PM" },
-  { sku: "ACC-001",   name: "Floral Keychain",         type: "Product", stock: 50, reorderLevel: 15, lastUpdated: "05 Jan 2025, 01:20 PM" },
-  { sku: "PNT-001",   name: "Abstract Canvas Print",   type: "Product", stock: 2,  reorderLevel: 3,  lastUpdated: "04 Jan 2025, 03:10 PM" },
-  { sku: "COMBO-001", name: "Artist Starter Kit",      type: "Combo",   stock: 3,  reorderLevel: 5,  lastUpdated: "10 Jan 2025, 12:00 PM" },
-  { sku: "COMBO-002", name: "Stationery Bundle",       type: "Combo",   stock: 0,  reorderLevel: 3,  lastUpdated: "09 Jan 2025, 05:30 PM" },
-];
-
-const initialItems: Item[] = seed.map((i) => ({ ...i, status: calcStatus(i.stock, i.reorderLevel) }));
-
 const statusStyle: Record<StockStatus, { bg: string; color: string }> = {
   "In Stock":     { bg: "rgba(34,197,94,0.12)",  color: "#22c55e" },
   "Low Stock":    { bg: "rgba(234,179,8,0.12)",  color: "#eab308" },
@@ -45,11 +32,53 @@ const statusStyle: Record<StockStatus, { bg: string; color: string }> = {
 type EditState = { sku: string; stock: string; reorderLevel: string } | null;
 
 export default function InventoryPage() {
-  const [items, setItems]   = useState(initialItems);
+  const [items, setItems]   = useState<Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
   const [edit, setEdit]     = useState<EditState>(null);
   const [restock, setRestock] = useState<{ sku: string; qty: string } | null>(null);
+
+  // ── Load Inventory ────────────────────────────────────────────────────────
+  useEffect(() => {
+    async function loadInventory() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const token = getAuthToken();
+        const headers: Record<string, string> = {
+          Accept: "application/json",
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory`, { headers });
+        const json = await res.json();
+        
+        if (json.success && Array.isArray(json.data)) {
+          const mapped: Item[] = json.data.map((i: any) => ({
+            sku: i.sku || "",
+            name: i.name || "",
+            type: i.type || "Product",
+            stock: Number(i.stock ?? 0),
+            reorderLevel: Number(i.reorderLevel ?? 5),
+            status: calcStatus(Number(i.stock ?? 0), Number(i.reorderLevel ?? 5)),
+            lastUpdated: i.lastUpdated || "",
+          }));
+          setItems(mapped);
+        } else {
+          setError(json.message || "Failed to load inventory data");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Error connecting to inventory backend API");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadInventory();
+  }, []);
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const outCount  = items.filter((i) => i.status === "Out of Stock").length;
@@ -65,26 +94,82 @@ export default function InventoryPage() {
   });
 
   // ── Inline edit save ──────────────────────────────────────────────────────
-  function saveEdit() {
+  async function saveEdit() {
     if (!edit) return;
-    setItems((p) => p.map((i) => {
-      if (i.sku !== edit.sku) return i;
-      const s = Number(edit.stock);
-      const r = Number(edit.reorderLevel);
-      return { ...i, stock: s, reorderLevel: r, status: calcStatus(s, r), lastUpdated: now() };
-    }));
-    setEdit(null);
+    try {
+      const stockVal = Number(edit.stock);
+      const reorderVal = Number(edit.reorderLevel);
+
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory/update`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          sku: edit.sku,
+          stock: stockVal,
+          reorderLevel: reorderVal,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to update inventory");
+
+      setItems((p) => p.map((i) => {
+        if (i.sku !== edit.sku) return i;
+        return { ...i, stock: stockVal, reorderLevel: reorderVal, status: calcStatus(stockVal, reorderVal), lastUpdated: now() };
+      }));
+      setEdit(null);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to save inventory updates");
+    }
   }
 
   // ── Restock confirm ───────────────────────────────────────────────────────
-  function confirmRestock() {
+  async function confirmRestock() {
     if (!restock) return;
-    setItems((p) => p.map((i) => {
-      if (i.sku !== restock.sku) return i;
-      const s = i.stock + Number(restock.qty);
-      return { ...i, stock: s, status: calcStatus(s, i.reorderLevel), lastUpdated: now() };
-    }));
-    setRestock(null);
+    try {
+      const item = items.find((i) => i.sku === restock.sku);
+      if (!item) return;
+
+      const additionalStock = Number(restock.qty);
+      const newStock = item.stock + additionalStock;
+
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory/update`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          sku: restock.sku,
+          stock: newStock,
+          reorderLevel: item.reorderLevel,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to restock item");
+
+      setItems((p) => p.map((i) => {
+        if (i.sku !== restock.sku) return i;
+        return { ...i, stock: newStock, status: calcStatus(newStock, i.reorderLevel), lastUpdated: now() };
+      }));
+      setRestock(null);
+    } catch (err: any) {
+      console.error(err);
+      alert(err.message || "Failed to process restock request");
+    }
   }
 
   const filterBtn = (s: string) => ({
@@ -95,6 +180,14 @@ export default function InventoryPage() {
 
   const inp = "px-3 py-1.5 rounded-lg border text-sm text-center focus:outline-none focus:ring-2 focus:ring-violet-500";
   const inpStyle = { backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--txt-1)" };
+
+  if (loading) {
+    return <div className="text-center py-24 text-sm" style={{ color: "var(--txt-3)" }}>Loading inventory data...</div>;
+  }
+
+  if (error) {
+    return <div className="text-center py-24 text-sm font-medium text-rose-500">⚠ {error}</div>;
+  }
 
   return (
     <div className="space-y-5">

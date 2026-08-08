@@ -1,20 +1,7 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-
-// ── Mock inventory — replace with real API data ───────────────────────────────
-const INVENTORY = [
-  { sku: "BAG-001", name: "Floral Backpack",       price: 1200 },
-  { sku: "BAG-002", name: "Tote Bag Classic",       price: 800  },
-  { sku: "STA-001", name: "Sketchbook A4",          price: 350  },
-  { sku: "STA-002", name: "Pencil Box Wooden",      price: 450  },
-  { sku: "STA-003", name: "Watercolor Diary",       price: 600  },
-  { sku: "ACC-001", name: "Floral Keychain",        price: 150  },
-  { sku: "ACC-002", name: "Bookmark Set (5pcs)",    price: 250  },
-  { sku: "PNT-001", name: "Abstract Canvas Print",  price: 4500 },
-  { sku: "PNT-002", name: "Watercolor Series",      price: 6800 },
-  { sku: "PHO-001", name: "Photography Print",      price: 3200 },
-];
+import { getAuthToken } from "@/lib/auth";
 
 const steps = ["Basic Info", "Select Products", "Pricing & Stock", "Publish"];
 
@@ -29,6 +16,9 @@ export default function ComboProductPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [search, setSearch]   = useState("");
+  const [inventory, setInventory] = useState<Array<{ id: string; sku: string; name: string; price: number; stock: number }>>([]);
+  const [invLoading, setInvLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const [form, setForm] = useState({
     comboName: "",
@@ -41,28 +31,56 @@ export default function ComboProductPage() {
     status: "Draft",
   });
 
-  const [selectedSkus, setSelectedSkus] = useState<string[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    async function loadInventory() {
+      try {
+        setInvLoading(true);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products/store?limit=1000`);
+        const json = await res.json();
+        if (json.success && Array.isArray(json.data)) {
+          const mapped = json.data.map((p: any) => ({
+            id: p._id || p.id,
+            sku: p.skuCode || p.sku || "",
+            name: p.productName || p.name || "",
+            price: Number(p.sellingPrice ?? p.price ?? 0),
+            stock: Number(p.stockQuantity ?? p.stock ?? 0)
+          }));
+          setInventory(mapped);
+        } else {
+          setErrorMsg("Failed to fetch products from backend API");
+        }
+      } catch (err) {
+        console.error("Failed to load storefront products", err);
+        setErrorMsg("Error connecting to backend products API");
+      } finally {
+        setInvLoading(false);
+      }
+    }
+    loadInventory();
+  }, []);
 
   function set(e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((p) => ({ ...p, [e.target.name]: e.target.value }));
   }
 
-  function toggleSku(sku: string) {
-    setSelectedSkus((p) => p.includes(sku) ? p.filter((s) => s !== sku) : [...p, sku]);
+  function toggleId(id: string) {
+    setSelectedIds((p) => p.includes(id) ? p.filter((x) => x !== id) : [...p, id]);
   }
 
   // ── Auto price = sum of selected products ────────────────────────────────
-  const autoPrice = selectedSkus.reduce((sum, sku) => {
-    const p = INVENTORY.find((i) => i.sku === sku);
+  const autoPrice = selectedIds.reduce((sum, id) => {
+    const p = inventory.find((i) => i.id === id);
     return sum + (p?.price ?? 0);
   }, 0);
 
   const savings = autoPrice - Number(form.comboPrice || 0);
 
-  // ── Auto stock = min stock of included products (mock: show label) ───────
-  const selectedProducts = INVENTORY.filter((i) => selectedSkus.includes(i.sku));
+  // ── Auto stock = min stock of included products ──────────────────────────
+  const selectedProducts = inventory.filter((i) => selectedIds.includes(i.id));
 
-  const filteredInventory = INVENTORY.filter(
+  const filteredInventory = inventory.filter(
     (i) =>
       i.name.toLowerCase().includes(search.toLowerCase()) ||
       i.sku.toLowerCase().includes(search.toLowerCase())
@@ -70,7 +88,7 @@ export default function ComboProductPage() {
 
   const canNext = [
     !!(form.comboName && form.comboSku),
-    selectedSkus.length >= 2,
+    selectedIds.length >= 2,
     !!(form.comboPrice && (form.stockLogic === "auto" || form.comboStock)),
     true,
   ];
@@ -78,10 +96,54 @@ export default function ComboProductPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1400));
-    setLoading(false);
-    setSuccess(true);
-    setTimeout(() => router.push("/dashboard/products"), 1500);
+    setErrorMsg("");
+
+    const items = selectedProducts.map(p => ({
+      product: p.id,
+      quantity: 1
+    }));
+
+    const payload = {
+      comboName: form.comboName,
+      comboSku: form.comboSku,
+      comboPrice: Number(form.comboPrice),
+      items,
+      stockLogic: form.stockLogic,
+      comboStock: form.stockLogic === "manual" ? Number(form.comboStock) : undefined,
+      active: form.active,
+      published: form.status === "Published",
+      comboDesc: form.comboDesc,
+    };
+
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/combos`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.message || "Failed to create combo product");
+      }
+
+      setSuccess(true);
+      setTimeout(() => router.push("/dashboard/products"), 1500);
+    } catch (err: any) {
+      console.error(err);
+      setErrorMsg(err.message || "Something went wrong while creating the combo");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -121,6 +183,13 @@ export default function ComboProductPage() {
         <div className="rounded-xl px-5 py-3 text-sm font-medium"
           style={{ backgroundColor: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "#22c55e" }}>
           ✓ Combo product created! Redirecting...
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="rounded-xl px-5 py-3 text-sm font-medium"
+          style={{ backgroundColor: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "#ef4444" }}>
+          ⚠ {errorMsg}
         </div>
       )}
 
@@ -179,19 +248,19 @@ export default function ComboProductPage() {
               </div>
 
               {/* Selected chips */}
-              {selectedSkus.length > 0 && (
+              {selectedIds.length > 0 && (
                 <div className="flex flex-wrap gap-2 p-3 rounded-xl" style={{ backgroundColor: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
                   {selectedProducts.map((p) => (
-                    <span key={p.sku} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
+                    <span key={p.id} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-full"
                       style={{ backgroundColor: "rgba(139,92,246,0.15)", color: "#8b5cf6" }}>
                       <span>{p.name}</span>
                       <span className="opacity-60">·</span>
                       <span>₹{p.price.toLocaleString()}</span>
-                      <button type="button" onClick={() => toggleSku(p.sku)} className="ml-1 hover:text-rose-500 transition-colors">✕</button>
+                      <button type="button" onClick={() => toggleId(p.id)} className="ml-1 hover:text-rose-500 transition-colors">✕</button>
                     </span>
                   ))}
                   <div className="w-full flex items-center justify-between pt-1">
-                    <span className="text-xs" style={{ color: "var(--txt-3)" }}>{selectedSkus.length} products selected</span>
+                    <span className="text-xs" style={{ color: "var(--txt-3)" }}>{selectedIds.length} products selected</span>
                     <span className="text-xs font-semibold" style={{ color: "#8b5cf6" }}>
                       Combined value: ₹{autoPrice.toLocaleString()}
                     </span>
@@ -211,39 +280,44 @@ export default function ComboProductPage() {
 
               {/* Inventory list */}
               <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                {filteredInventory.map((item) => {
-                  const selected = selectedSkus.includes(item.sku);
-                  return (
-                    <div
-                      key={item.sku}
-                      onClick={() => toggleSku(item.sku)}
-                      className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all"
-                      style={{
-                        border: `1px solid ${selected ? "rgba(139,92,246,0.4)" : "var(--border)"}`,
-                        backgroundColor: selected ? "rgba(139,92,246,0.06)" : "var(--base)",
-                      }}
-                    >
-                      {/* Checkbox */}
-                      <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
-                        style={{ backgroundColor: selected ? "#8b5cf6" : "var(--card)", border: `2px solid ${selected ? "#8b5cf6" : "var(--border)"}` }}>
-                        {selected && <span className="text-white text-[10px] font-bold">✓</span>}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate" style={{ color: "var(--txt-1)" }}>{item.name}</p>
-                        <p className="text-xs" style={{ color: "var(--txt-3)" }}>{item.sku}</p>
-                      </div>
-                      <span className="text-sm font-semibold shrink-0" style={{ color: "var(--txt-2)" }}>
-                        ₹{item.price.toLocaleString()}
-                      </span>
-                    </div>
-                  );
-                })}
-                {filteredInventory.length === 0 && (
+                {invLoading ? (
+                  <p className="text-center py-6 text-sm text-gray-400">Loading published products...</p>
+                ) : errorMsg ? (
+                  <p className="text-center py-6 text-sm text-rose-500">{errorMsg}</p>
+                ) : filteredInventory.length === 0 ? (
                   <p className="text-center py-6 text-sm" style={{ color: "var(--txt-3)" }}>No products found</p>
+                ) : (
+                  filteredInventory.map((item) => {
+                    const selected = selectedIds.includes(item.id);
+                    return (
+                      <div
+                        key={item.id}
+                        onClick={() => toggleId(item.id)}
+                        className="flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all"
+                        style={{
+                          border: `1px solid ${selected ? "rgba(139,92,246,0.4)" : "var(--border)"}`,
+                          backgroundColor: selected ? "rgba(139,92,246,0.06)" : "var(--base)",
+                        }}
+                      >
+                        {/* Checkbox */}
+                        <div className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors"
+                          style={{ backgroundColor: selected ? "#8b5cf6" : "var(--card)", border: `2px solid ${selected ? "#8b5cf6" : "var(--border)"}` }}>
+                          {selected && <span className="text-white text-[10px] font-bold">✓</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate" style={{ color: "var(--txt-1)" }}>{item.name}</p>
+                          <p className="text-xs" style={{ color: "var(--txt-3)" }}>{item.sku || "No SKU"}</p>
+                        </div>
+                        <span className="text-sm font-semibold shrink-0" style={{ color: "var(--txt-2)" }}>
+                          ₹{item.price.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
 
-              {selectedSkus.length < 2 && (
+              {selectedIds.length < 2 && (
                 <p className="text-xs" style={{ color: "#eab308" }}>⚠ Select at least 2 products to continue</p>
               )}
             </>
@@ -263,8 +337,8 @@ export default function ComboProductPage() {
                     <p className="text-lg font-bold mt-0.5" style={{ color: "var(--txt-1)" }}>₹{autoPrice.toLocaleString()}</p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs" style={{ color: "var(--txt-3)" }}>{selectedSkus.length} products</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--txt-3)" }}>{selectedProducts.map(p => p.sku).join(", ")}</p>
+                    <p className="text-xs" style={{ color: "var(--txt-3)" }}>{selectedIds.length} products</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--txt-3)" }}>{selectedProducts.map(p => p.sku || "No SKU").join(", ")}</p>
                   </div>
                 </div>
 
@@ -378,7 +452,7 @@ export default function ComboProductPage() {
                     {[
                       ["Combo Name",    form.comboName || "—"],
                       ["Combo SKU",     form.comboSku || "—"],
-                      ["Products",      selectedSkus.length > 0 ? selectedSkus.join(", ") : "—"],
+                      ["Products",      selectedProducts.length > 0 ? selectedProducts.map(p => p.sku || p.name).join(", ") : "—"],
                       ["Combined Value","₹" + autoPrice.toLocaleString()],
                       ["Combo Price",   form.comboPrice ? "₹" + Number(form.comboPrice).toLocaleString() : "—"],
                       ["Savings",       savings > 0 ? "₹" + savings.toLocaleString() : "—"],

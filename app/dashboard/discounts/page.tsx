@@ -1,46 +1,171 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getAuthToken } from "@/lib/auth";
 
 const card = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
 
 type Coupon = {
-  id: number; code: string; type: "percent" | "flat"; value: number;
+  id: string | number; code: string; type: "percent" | "flat"; value: number;
   minOrder: number; uses: number; maxUses: number; expiry: string;
   active: boolean; description: string;
 };
 
-const initialCoupons: Coupon[] = [
-  { id:1, code:"WELCOME20",  type:"percent", value:20, minOrder:1000,  uses:34,  maxUses:100, expiry:"2025-03-31", active:true,  description:"New customer welcome discount" },
-  { id:2, code:"FLAT500",    type:"flat",    value:500,minOrder:3000,  uses:18,  maxUses:50,  expiry:"2025-02-28", active:true,  description:"Flat ₹500 off on orders above ₹3000" },
-  { id:3, code:"ART15",      type:"percent", value:15, minOrder:2000,  uses:62,  maxUses:200, expiry:"2025-04-30", active:true,  description:"Art lovers special" },
-  { id:4, code:"FESTIVE30",  type:"percent", value:30, minOrder:5000,  uses:200, maxUses:200, expiry:"2025-01-15", active:false, description:"Festive season offer — expired" },
-  { id:5, code:"VIP1000",    type:"flat",    value:1000,minOrder:8000, uses:8,   maxUses:20,  expiry:"2025-06-30", active:true,  description:"VIP customer exclusive" },
-];
-
 const emptyForm = { code:"", type:"percent" as "percent"|"flat", value:"", minOrder:"", maxUses:"", expiry:"", description:"" };
 
 export default function DiscountsPage() {
-  const [coupons, setCoupons] = useState(initialCoupons);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState("");
 
-  function toggle(id: number) { setCoupons((p) => p.map((c) => c.id === id ? { ...c, active: !c.active } : c)); }
-  function deleteCoupon(id: number) { setCoupons((p) => p.filter((c) => c.id !== id)); }
+  // ── Load Coupons ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    async function loadCoupons() {
+      try {
+        setLoading(true);
+        setError("");
 
-  function handleCreate(e: React.FormEvent) {
+        const token = getAuthToken();
+        const headers: Record<string, string> = {
+          Accept: "application/json",
+        };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons`, { headers });
+        const json = await res.json();
+
+        if (json.success && Array.isArray(json.data)) {
+          const mapped: Coupon[] = json.data.map((c: any) => ({
+            id: c._id || c.id,
+            code: c.code || "",
+            type: c.type || "percent",
+            value: Number(c.value ?? 0),
+            minOrder: Number(c.minOrder ?? 0),
+            uses: Number(c.uses ?? 0),
+            maxUses: Number(c.maxUses ?? 999),
+            expiry: c.expiry ? new Date(c.expiry).toISOString().split("T")[0] : "",
+            active: !!c.active,
+            description: c.description || "",
+          }));
+          setCoupons(mapped);
+        } else {
+          setError(json.message || "Failed to load coupons data");
+        }
+      } catch (err) {
+        console.error(err);
+        setError("Error connecting to coupons backend API");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadCoupons();
+  }, []);
+
+  async function toggle(id: string | number) {
+    try {
+      const c = coupons.find((x) => x.id === id);
+      if (!c) return;
+
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons/${id}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ active: !c.active }),
+      });
+
+      if (!res.ok) throw new Error("Failed to update coupon status");
+
+      setCoupons((p) => p.map((x) => x.id === id ? { ...x, active: !x.active } : x));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to toggle coupon status");
+    }
+  }
+
+  async function deleteCoupon(id: string | number) {
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons/${id}`, {
+        method: "DELETE",
+        headers,
+      });
+
+      if (!res.ok) throw new Error("Failed to delete coupon");
+
+      setCoupons((p) => p.filter((x) => x.id !== id));
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete coupon");
+    }
+  }
+
+  async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
     if (!form.code.trim()) { setError("Coupon code is required"); return; }
+    if (!form.value) { setError("Discount value is required"); return; }
+    if (!form.expiry) { setError("Expiry date is required"); return; }
     if (coupons.find((c) => c.code === form.code.toUpperCase())) { setError("Code already exists"); return; }
-    setCoupons((p) => [...p, {
-      id: Date.now(), code: form.code.toUpperCase(), type: form.type,
-      value: Number(form.value), minOrder: Number(form.minOrder) || 0,
-      uses: 0, maxUses: Number(form.maxUses) || 999,
-      expiry: form.expiry || "2025-12-31", active: true, description: form.description,
-    }]);
-    setForm(emptyForm);
-    setShowForm(false);
-    setError("");
+    
+    try {
+      const token = getAuthToken();
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const payload = {
+        code: form.code.toUpperCase(),
+        type: form.type,
+        value: Number(form.value),
+        minOrder: Number(form.minOrder) || 0,
+        maxUses: Number(form.maxUses) || 999,
+        expiry: form.expiry,
+        description: form.description,
+      };
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.message || "Failed to create coupon");
+
+      const created: Coupon = {
+        id: json.data._id || json.data.id,
+        code: json.data.code,
+        type: json.data.type,
+        value: Number(json.data.value),
+        minOrder: Number(json.data.minOrder),
+        uses: Number(json.data.uses ?? 0),
+        maxUses: Number(json.data.maxUses),
+        expiry: json.data.expiry ? new Date(json.data.expiry).toISOString().split("T")[0] : "",
+        active: !!json.data.active,
+        description: json.data.description,
+      };
+
+      setCoupons((p) => [created, ...p]);
+      setForm(emptyForm);
+      setShowForm(false);
+      setError("");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Failed to create coupon");
+    }
   }
 
   const inputStyle = { backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" };
@@ -48,6 +173,10 @@ export default function DiscountsPage() {
 
   const totalSavings = coupons.reduce((s, c) => s + (c.type === "flat" ? c.value * c.uses : 0), 0);
   const activeCoupons = coupons.filter((c) => c.active).length;
+
+  if (loading) {
+    return <div className="text-center py-24 text-sm" style={{ color: "var(--txt-3)" }}>Loading discount coupons...</div>;
+  }
 
   return (
     <div className="space-y-5">
