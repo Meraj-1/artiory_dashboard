@@ -5,7 +5,10 @@ import { useState } from "react";
 import { clearAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 
-const navSections = [
+type NavItem = { href: string; label: string; icon: string; exact?: boolean; badge?: number };
+type NavSection = { title: string; items: NavItem[] };
+
+const navSections: NavSection[] = [
   {
     title: "Main",
     items: [

@@ -4,14 +4,12 @@ import { useRouter } from "next/navigation";
 import { getAuthCookieName, getAuthToken } from "@/lib/auth";
 
 const CATEGORIES: Record<string, string[]> = {
-  Bag:         ["Backpack", "Tote Bag", "Sling Bag", "Clutch", "Duffle Bag"],
-  Stationery:  ["Notebook", "Pencil Box", "Diary", "Planner", "Sketchbook"],
-  Accessories: ["Keychain", "Bookmark", "Magnet", "Pin Badge", "Patch"],
-  Painting:    ["Canvas Print", "Watercolor", "Oil Painting", "Acrylic", "Poster"],
-  Sculpture:   ["Figurine", "Vase", "Wall Art", "Ceramic", "Bronze"],
-  Digital:     ["Digital Print", "NFT Art", "Illustration", "Vector Art"],
-  Photography: ["Photo Print", "Framed Photo", "Canvas Photo"],
-  Other:       ["Miscellaneous"],
+  ArtsCraft:["Crayons", "Water Colours", "Puzzle Crayons"],
+  Stationery:  ["Pencil Box", "Compass Box", "Slate", "Stationery Combo Set", "Mechanical Sharpener", "Pencil Case", "Diary"],
+  Bags: ["Tiffin Bags", "Cross Bags", "Folder Bags", "Fancy Bags", "Vanity Case"],
+  Pouches:    ["Soft Pouch", "Silicone Pouch"],
+  Drinkware:   ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler"],
+  giftFun:     ["Metal Money Box", "Gift Hamper", "Mini Fan"],
 };
 
 type Variant = { id: number; color: string; design: string; price: string; stock: string };
