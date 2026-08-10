@@ -36,4 +36,4 @@ export function validateCredentials(email: string, password: string) {
   );
 }
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app";
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com";

@@ -32,7 +32,7 @@ export default function DiscountsPage() {
         };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons`, { headers });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/coupons`, { headers });
         const json = await res.json();
 
         if (json.success && Array.isArray(json.data)) {
@@ -74,7 +74,7 @@ export default function DiscountsPage() {
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/coupons/${id}`, {
         method: "PUT",
         headers,
         body: JSON.stringify({ active: !c.active }),
@@ -97,7 +97,7 @@ export default function DiscountsPage() {
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons/${id}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/coupons/${id}`, {
         method: "DELETE",
         headers,
       });
@@ -136,7 +136,7 @@ export default function DiscountsPage() {
         description: form.description,
       };
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/coupons`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/coupons`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),

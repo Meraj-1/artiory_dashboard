@@ -37,7 +37,7 @@ export default function ComboProductPage() {
     async function loadInventory() {
       try {
         setInvLoading(true);
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products/store?limit=1000`);
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products/store?limit=1000`);
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           const mapped = json.data.map((p: any) => ({
@@ -125,7 +125,7 @@ export default function ComboProductPage() {
         headers["Authorization"] = `Bearer ${token}`;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/combos`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/combos`, {
         method: "POST",
         headers,
         body: JSON.stringify(payload),

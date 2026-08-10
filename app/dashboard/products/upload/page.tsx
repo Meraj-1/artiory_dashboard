@@ -158,7 +158,7 @@ export default function UploadProductPage() {
         headers["token"] = authToken;
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/products`, {
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products`, {
         method: "POST",
         headers,
         body: formData,

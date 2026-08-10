@@ -53,7 +53,7 @@ export default function InventoryPage() {
         };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory`, { headers });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/inventory`, { headers });
         const json = await res.json();
         
         if (json.success && Array.isArray(json.data)) {
@@ -107,7 +107,7 @@ export default function InventoryPage() {
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory/update`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/inventory/update`, {
         method: "PUT",
         headers,
         body: JSON.stringify({
@@ -148,7 +148,7 @@ export default function InventoryPage() {
       };
       if (token) headers["Authorization"] = `Bearer ${token}`;
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/inventory/update`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/inventory/update`, {
         method: "PUT",
         headers,
         body: JSON.stringify({

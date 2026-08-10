@@ -39,7 +39,7 @@ export default function CustomersPage() {
         };
         if (token) headers["Authorization"] = `Bearer ${token}`;
 
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://artiory-backend.vercel.app"}/api/customers`, { headers });
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/customers`, { headers });
         const json = await res.json();
 
         if (json.success && Array.isArray(json.data)) {
