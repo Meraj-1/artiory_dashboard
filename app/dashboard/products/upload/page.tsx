@@ -21,6 +21,62 @@ const inputClass = "w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-n
 const labelClass = "block text-xs font-semibold uppercase tracking-wide mb-1.5";
 const card = { backgroundColor: "var(--card)", borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)" };
 
+const compressImage = (file: File): Promise<File> => {
+  return new Promise((resolve) => {
+    if (!file.type.startsWith("image/")) {
+      return resolve(file);
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        const MAX_WIDTH = 1200;
+        const MAX_HEIGHT = 1200;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        ctx?.drawImage(img, 0, 0, width, height);
+
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: "image/jpeg",
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          "image/jpeg",
+          0.7
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 export default function UploadProductPage() {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -144,10 +200,11 @@ export default function UploadProductPage() {
       if (selectedFiles && selectedFiles.length > 0) {
         for (let i = 0; i < selectedFiles.length; i++) {
           const f = selectedFiles[i];
-          formData.append("image", f);
-          formData.append("images", f);
-          formData.append(`images[${i}]`, f);
-          formData.append("file", f);
+          const compressed = await compressImage(f);
+          formData.append("image", compressed);
+          formData.append("images", compressed);
+          formData.append(`images[${i}]`, compressed);
+          formData.append("file", compressed);
         }
       }
 
