@@ -61,6 +61,21 @@ export default function UploadProductPage() {
   // ── Images ────────────────────────────────────────────────────────────────
   function handleImages(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
+    
+    const MAX_SINGLE_SIZE = 4 * 1024 * 1024; // 4MB
+    const oversized = files.filter(f => f.size > MAX_SINGLE_SIZE);
+    if (oversized.length > 0) {
+      alert(`The following files exceed the 4MB size limit: ${oversized.map(f => f.name).join(", ")}. Please compress them before uploading.`);
+      return;
+    }
+
+    const currentTotalSize = selectedFiles.reduce((sum, f) => sum + f.size, 0);
+    const incomingTotalSize = files.reduce((sum, f) => sum + f.size, 0);
+    if (currentTotalSize + incomingTotalSize > 4.2 * 1024 * 1024) {
+      alert("The total size of all selected images exceeds Vercel's 4.5MB payload limit. Please upload fewer or smaller images.");
+      return;
+    }
+
     files.forEach((f) => setPreviews((p) => [...p, URL.createObjectURL(f)]));
     setSelectedFiles((p) => [...p, ...files]);
   }
