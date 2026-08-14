@@ -244,139 +244,167 @@ export default function InventoryPage() {
       </div>
 
       {/* Table */}
-      <div style={card} className="rounded-2xl overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr style={{ backgroundColor: "var(--base)", borderBottom: "1px solid var(--border)" }}>
-              {["SKU Code", "Product / Combo Name", "Type", "Current Stock", "Reorder Level", "Stock Status", "Last Updated", "Actions"].map((h) => (
-                <th key={h} className="px-5 py-3 text-left text-[11px] uppercase tracking-widest whitespace-nowrap" style={{ color: "var(--txt-3)" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((item) => {
-              const isEditing   = edit?.sku === item.sku;
-              const isRestocking = restock?.sku === item.sku;
+      <div style={{ ...card, borderRadius: 16, overflow: "hidden" }}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: 900 }}>
+            <colgroup>
+              <col style={{ width: "110px" }} />
+              <col style={{ width: "220px" }} />
+              <col style={{ width: "90px" }} />
+              <col style={{ width: "120px" }} />
+              <col style={{ width: "120px" }} />
+              <col style={{ width: "130px" }} />
+              <col style={{ width: "160px" }} />
+              <col style={{ width: "200px" }} />
+            </colgroup>
+            <thead>
+              <tr style={{ backgroundColor: "var(--base)", position: "sticky", top: 0, zIndex: 1 }}>
+                {["SKU Code", "Product / Combo Name", "Type", "Current Stock", "Reorder Level", "Stock Status", "Last Updated", "Actions"].map((h) => (
+                  <th key={h} style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600, whiteSpace: "nowrap" }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((item, idx) => {
+                const isEditing    = edit?.sku === item.sku;
+                const isRestocking = restock?.sku === item.sku;
+                const cellBorder   = "1px solid var(--border)";
+                const rowBg        = isEditing
+                  ? "rgba(139,92,246,0.07)"
+                  : idx % 2 === 0 ? "var(--card)" : "var(--base)";
 
-              return (
-                <>
-                  <tr key={item.sku} style={{ borderTop: "1px solid var(--border-sub)", backgroundColor: isEditing ? "rgba(139,92,246,0.03)" : undefined }}>
+                return (
+                  <>
+                    <tr key={item.sku} style={{ backgroundColor: rowBg, cursor: "default" }} className="transition-colors hover:brightness-95">
 
-                    {/* SKU */}
-                    <td className="px-5 py-3.5 text-xs font-mono font-semibold" style={{ color: "var(--txt-3)" }}>{item.sku}</td>
+                      {/* SKU */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 12, fontFamily: "monospace", fontWeight: 600, color: "var(--txt-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.sku}
+                      </td>
 
-                    {/* Name */}
-                    <td className="px-5 py-3.5 text-sm font-medium" style={{ color: "var(--txt-1)" }}>{item.name}</td>
+                      {/* Name */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 500, color: "var(--txt-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {item.name}
+                      </td>
 
-                    {/* Type badge */}
-                    <td className="px-5 py-3.5">
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full"
-                        style={item.type === "Combo"
-                          ? { backgroundColor: "rgba(139,92,246,0.12)", color: "#8b5cf6" }
-                          : { backgroundColor: "rgba(59,130,246,0.12)",  color: "#3b82f6" }}>
-                        {item.type}
-                      </span>
-                    </td>
-
-                    {/* Current Stock */}
-                    <td className="px-5 py-3.5">
-                      {isEditing ? (
-                        <input type="number" min="0" value={edit.stock}
-                          onChange={(e) => setEdit((p) => p && ({ ...p, stock: e.target.value }))}
-                          style={inpStyle} className={`${inp} w-20`} />
-                      ) : (
-                        <span className="text-lg font-bold"
-                          style={{ color: item.stock === 0 ? "#ef4444" : item.stock <= item.reorderLevel ? "#eab308" : "var(--txt-1)" }}>
-                          {item.stock}
+                      {/* Type badge */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder }}>
+                        <span style={{
+                          fontSize: 11, fontWeight: 500, padding: "3px 10px", borderRadius: 999, display: "inline-block",
+                          ...(item.type === "Combo"
+                            ? { backgroundColor: "rgba(139,92,246,0.12)", color: "#8b5cf6" }
+                            : { backgroundColor: "rgba(59,130,246,0.12)",  color: "#3b82f6" }),
+                        }}>
+                          {item.type}
                         </span>
-                      )}
-                    </td>
+                      </td>
 
-                    {/* Reorder Level */}
-                    <td className="px-5 py-3.5">
-                      {isEditing ? (
-                        <input type="number" min="1" value={edit.reorderLevel}
-                          onChange={(e) => setEdit((p) => p && ({ ...p, reorderLevel: e.target.value }))}
-                          style={inpStyle} className={`${inp} w-20`} />
-                      ) : (
-                        <span className="text-sm" style={{ color: "var(--txt-2)" }}>{item.reorderLevel}</span>
-                      )}
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-5 py-3.5">
-                      <span className="text-xs font-medium px-2.5 py-1 rounded-full" style={statusStyle[item.status]}>
-                        {item.status}
-                      </span>
-                    </td>
-
-                    {/* Last Updated */}
-                    <td className="px-5 py-3.5 text-xs whitespace-nowrap" style={{ color: "var(--txt-3)" }}>
-                      {item.lastUpdated}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-5 py-3.5">
-                      {isEditing ? (
-                        <div className="flex gap-2">
-                          <button onClick={saveEdit}
-                            className="text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-medium transition-colors">
-                            Save
-                          </button>
-                          <button onClick={() => setEdit(null)}
-                            className="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-                            style={{ border: "1px solid var(--border)", color: "var(--txt-3)" }}>
-                            ✕
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => setEdit({ sku: item.sku, stock: String(item.stock), reorderLevel: String(item.reorderLevel) })}
-                            className="text-xs px-2.5 py-1.5 rounded-lg transition-colors"
-                            style={{ border: "1px solid var(--border)", color: "var(--txt-2)" }}>
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setRestock(isRestocking ? null : { sku: item.sku, qty: "5" })}
-                            className="text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors"
-                            style={{ border: "1px solid rgba(139,92,246,0.3)", color: "#8b5cf6", backgroundColor: "rgba(139,92,246,0.06)" }}>
-                            + Restock
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-
-                  {/* Restock inline row */}
-                  {isRestocking && (
-                    <tr style={{ borderTop: "1px solid var(--border-sub)", backgroundColor: "rgba(139,92,246,0.04)" }}>
-                      <td colSpan={8} className="px-5 py-3">
-                        <div className="flex items-center gap-3 flex-wrap">
-                          <span className="text-sm" style={{ color: "var(--txt-2)" }}>Add units to <strong>{item.name}</strong>:</span>
-                          <input type="number" min="1" value={restock.qty}
-                            onChange={(e) => setRestock((p) => p && ({ ...p, qty: e.target.value }))}
-                            style={inpStyle} className={`${inp} w-24`} />
-                          <span className="text-xs" style={{ color: "var(--txt-3)" }}>
-                            New total: <strong style={{ color: "var(--txt-1)" }}>{item.stock + Number(restock.qty || 0)}</strong>
+                      {/* Current Stock */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, textAlign: "center" }}>
+                        {isEditing ? (
+                          <input type="number" min="0" value={edit.stock}
+                            onChange={(e) => setEdit((p) => p && ({ ...p, stock: e.target.value }))}
+                            style={{ ...inpStyle, width: 72 }} className={inp} />
+                        ) : (
+                          <span style={{ fontSize: 16, fontWeight: 700, color: item.stock === 0 ? "#ef4444" : item.stock <= item.reorderLevel ? "#eab308" : "var(--txt-1)" }}>
+                            {item.stock}
                           </span>
-                          <button onClick={confirmRestock}
-                            className="px-4 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg text-xs font-medium transition-colors">
-                            Confirm
-                          </button>
-                          <button onClick={() => setRestock(null)} className="text-xs" style={{ color: "var(--txt-3)" }}>Cancel</button>
-                        </div>
+                        )}
+                      </td>
+
+                      {/* Reorder Level */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, textAlign: "center" }}>
+                        {isEditing ? (
+                          <input type="number" min="1" value={edit.reorderLevel}
+                            onChange={(e) => setEdit((p) => p && ({ ...p, reorderLevel: e.target.value }))}
+                            style={{ ...inpStyle, width: 72 }} className={inp} />
+                        ) : (
+                          <span style={{ fontSize: 13, color: "var(--txt-2)" }}>{item.reorderLevel}</span>
+                        )}
+                      </td>
+
+                      {/* Status */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder }}>
+                        <span style={{ ...statusStyle[item.status], fontSize: 11, fontWeight: 500, padding: "3px 10px", borderRadius: 999, display: "inline-block" }}>
+                          {item.status}
+                        </span>
+                      </td>
+
+                      {/* Last Updated */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 12, color: "var(--txt-3)", whiteSpace: "nowrap" }}>
+                        {item.lastUpdated}
+                      </td>
+
+                      {/* Actions */}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder }}>
+                        {isEditing ? (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button onClick={saveEdit}
+                              style={{ fontSize: 11, padding: "4px 12px", borderRadius: 8, background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+                              className="hover:bg-violet-700 transition-colors">
+                              Save
+                            </button>
+                            <button onClick={() => setEdit(null)}
+                              style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, background: "transparent", border: "1px solid var(--border)", color: "var(--txt-3)", cursor: "pointer" }}
+                              className="hover:bg-[var(--base)] transition-colors">
+                              ✕
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ display: "flex", gap: 6 }}>
+                            <button
+                              onClick={() => setEdit({ sku: item.sku, stock: String(item.stock), reorderLevel: String(item.reorderLevel) })}
+                              style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, background: "transparent", border: "1px solid var(--border)", color: "var(--txt-2)", cursor: "pointer", whiteSpace: "nowrap" }}
+                              className="hover:bg-[var(--base)] transition-colors">
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setRestock(isRestocking ? null : { sku: item.sku, qty: "5" })}
+                              style={{ fontSize: 11, padding: "4px 10px", borderRadius: 8, background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.3)", color: "#8b5cf6", cursor: "pointer", fontWeight: 600, whiteSpace: "nowrap" }}
+                              className="hover:bg-violet-500/20 transition-colors">
+                              + Restock
+                            </button>
+                          </div>
+                        )}
                       </td>
                     </tr>
-                  )}
-                </>
-              );
-            })}
-          </tbody>
-        </table>
+
+                    {/* Restock inline row */}
+                    {isRestocking && (
+                      <tr style={{ backgroundColor: "rgba(139,92,246,0.05)", borderBottom: "1px solid var(--border)" }}>
+                        <td colSpan={8} style={{ padding: "10px 16px" }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                            <span style={{ fontSize: 13, color: "var(--txt-2)" }}>Add units to <strong>{item.name}</strong>:</span>
+                            <input type="number" min="1" value={restock.qty}
+                              onChange={(e) => setRestock((p) => p && ({ ...p, qty: e.target.value }))}
+                              style={{ ...inpStyle, width: 80 }} className={inp} />
+                            <span style={{ fontSize: 12, color: "var(--txt-3)" }}>
+                              New total: <strong style={{ color: "var(--txt-1)" }}>{item.stock + Number(restock.qty || 0)}</strong>
+                            </span>
+                            <button onClick={confirmRestock}
+                              style={{ fontSize: 12, padding: "5px 16px", borderRadius: 8, background: "#7c3aed", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+                              className="hover:bg-violet-700 transition-colors">
+                              Confirm
+                            </button>
+                            <button onClick={() => setRestock(null)}
+                              style={{ fontSize: 12, color: "var(--txt-3)", background: "none", border: "none", cursor: "pointer" }}>
+                              Cancel
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
 
         {filtered.length === 0 && (
-          <div className="text-center py-12 text-sm" style={{ color: "var(--txt-3)" }}>No items found</div>
+          <div style={{ textAlign: "center", padding: "48px 0", fontSize: 13, color: "var(--txt-3)" }}>No items found</div>
         )}
       </div>
 

@@ -88,6 +88,8 @@ export default function ProductsPage() {
   const [selected, setSelected] = useState<number[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -104,6 +106,11 @@ export default function ProductsPage() {
   function toggleAll(ids: number[]) {
     setSelected((p) => (p.length === ids.length ? [] : ids));
   }
+  function requestDelete(id: number) {
+    const product = products.find((p) => p.id === id);
+    if (product) setConfirmDelete({ id, name: product.name });
+  }
+
   async function deleteProduct(id: number) {
     setError(null);
 
@@ -149,6 +156,7 @@ export default function ProductsPage() {
       await deleteProduct(id);
     }
     setSelected([]);
+    setConfirmBulkDelete(false);
   }
   function bulkPublish() {
     setProducts((p) =>
@@ -407,7 +415,7 @@ export default function ProductsPage() {
               Set Draft
             </button>
             <button
-              onClick={bulkDelete}
+              onClick={() => setConfirmBulkDelete(true)}
               className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-medium"
             >
               Delete
@@ -443,158 +451,135 @@ export default function ProductsPage() {
 
       {/* Table */}
       {!loading && !error && view === "table" && (
-        <div style={card} className="rounded-2xl overflow-hidden">
-          <table className="w-full">
-            <thead>
-              <tr
-                style={{
-                  backgroundColor: "var(--base)",
-                  borderBottom: "1px solid var(--border)",
-                }}
-              >
-                <th className="px-5 py-3">
-                  <input
-                    type="checkbox"
-                    checked={
-                      filteredIds.length > 0 &&
-                      selected.length === filteredIds.length
-                    }
-                    onChange={() => toggleAll(filteredIds)}
-                    className="rounded accent-violet-600"
-                  />
-                </th>
-                <th
-                  className="px-5 py-3 text-left text-[11px] uppercase tracking-widest"
-                  style={{ color: "var(--txt-3)" }}
-                >
-                  Image
-                </th>
-                {(["name", "price", "status", "date"] as SortKey[]).map((k) => (
-                  <th
-                    key={k}
-                    onClick={() => toggleSort(k)}
-                    className="px-5 py-3 text-left text-[11px] uppercase tracking-widest cursor-pointer select-none"
-                    style={{ color: "var(--txt-3)" }}
-                  >
-                    {k.charAt(0).toUpperCase() + k.slice(1)}
-                    <SI k={k} />
-                  </th>
-                ))}
-                <th
-                  className="px-5 py-3 text-left text-[11px] uppercase tracking-widest"
-                  style={{ color: "var(--txt-3)" }}
-                >
-                  Category
-                </th>
-                <th
-                  className="px-5 py-3 text-left text-[11px] uppercase tracking-widest"
-                  style={{ color: "var(--txt-3)" }}
-                >
-                  Stock
-                </th>
-                <th
-                  className="px-5 py-3 text-left text-[11px] uppercase tracking-widest"
-                  style={{ color: "var(--txt-3)" }}
-                >
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <tr
-                  key={p.id}
-                  style={{
-                    borderTop: "1px solid var(--border-sub)",
-                    backgroundColor: selected.includes(p.id)
-                      ? "rgba(124,58,237,0.05)"
-                      : undefined,
-                  }}
-                >
-                  <td className="px-5 py-3.5">
+        <div style={{ ...card, borderRadius: "16px", overflow: "hidden" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed", minWidth: "860px" }}>
+              <colgroup>
+                <col style={{ width: "44px" }} />
+                <col style={{ width: "56px" }} />
+                <col style={{ width: "220px" }} />
+                <col style={{ width: "100px" }} />
+                <col style={{ width: "110px" }} />
+                <col style={{ width: "110px" }} />
+                <col style={{ width: "130px" }} />
+                <col style={{ width: "70px" }} />
+                <col style={{ width: "180px" }} />
+              </colgroup>
+              <thead>
+                <tr style={{ backgroundColor: "var(--base)", position: "sticky", top: 0, zIndex: 1 }}>
+                  {/* checkbox */}
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)" }}>
                     <input
                       type="checkbox"
-                      checked={selected.includes(p.id)}
-                      onChange={() => toggleSelect(p.id)}
-                      className="rounded accent-violet-600"
+                      checked={filteredIds.length > 0 && selected.length === filteredIds.length}
+                      onChange={() => toggleAll(filteredIds)}
+                      className="rounded accent-violet-600 cursor-pointer"
                     />
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-xl overflow-hidden"
-                      style={{ backgroundColor: "var(--base)" }}
+                  </th>
+                  {/* image */}
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
+                    Img
+                  </th>
+                  {/* sortable cols */}
+                  {(["name", "price", "status", "date"] as SortKey[]).map((k, i) => (
+                    <th
+                      key={k}
+                      onClick={() => toggleSort(k)}
+                      style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: sortKey === k ? "var(--txt-1)" : "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600, cursor: "pointer", userSelect: "none", whiteSpace: "nowrap" }}
                     >
-                      {renderProductImage(p.image)}
-                    </div>
-                  </td>
-                  <td
-                    className="px-5 py-3.5 text-sm font-medium"
-                    style={{ color: "var(--txt-1)" }}
-                  >
-                    {p.name}
-                  </td>
-                  <td
-                    className="px-5 py-3.5 text-sm font-semibold"
-                    style={{ color: "var(--txt-2)" }}
-                  >
-                    ₹{p.price.toLocaleString()}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <span
-                      className="text-xs font-medium px-2.5 py-1 rounded-full"
-                      style={statusBadge[p.status]}
-                    >
-                      {p.status}
-                    </span>
-                  </td>
-                  <td
-                    className="px-5 py-3.5 text-xs"
-                    style={{ color: "var(--txt-3)" }}
-                  >
-                    {p.date}
-                  </td>
-                  <td
-                    className="px-5 py-3.5 text-sm"
-                    style={{ color: "var(--txt-3)" }}
-                  >
-                    {p.category}
-                  </td>
-                  <td
-                    className="px-5 py-3.5 text-sm"
-                    style={{ color: "var(--txt-2)" }}
-                  >
-                    {p.stock}
-                  </td>
-                  <td className="px-5 py-3.5">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => togglePublishStatus(p)}
-                        className="text-xs px-2.5 py-1 rounded-lg transition-colors"
-                        style={{
-                          border: "1px solid var(--border)",
-                          color: "var(--txt-2)",
-                        }}
-                      >
-                        {p.status === "Published" ? "Unpublish" : "Publish"}
-                      </button>
-                      <button
-                        onClick={() => deleteProduct(p.id)}
-                        className="text-xs px-2.5 py-1 rounded-lg text-rose-500 transition-colors"
-                        style={{ border: "1px solid rgba(239,68,68,0.3)" }}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
+                      {k.charAt(0).toUpperCase() + k.slice(1)}
+                      <SI k={k} />
+                    </th>
+                  ))}
+                  {/* category */}
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
+                    Category
+                  </th>
+                  {/* stock */}
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
+                    Stock
+                  </th>
+                  {/* actions */}
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
+                    Actions
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {filtered.map((p, idx) => {
+                  const isSelected = selected.includes(p.id);
+                  const rowBg = isSelected
+                    ? "rgba(124,58,237,0.07)"
+                    : idx % 2 === 0
+                    ? "var(--card)"
+                    : "var(--base)";
+                  const cellBorder = "1px solid var(--border)";
+                  return (
+                    <tr
+                      key={p.id}
+                      onClick={() => toggleSelect(p.id)}
+                      style={{ backgroundColor: rowBg, cursor: "pointer" }}
+                      className="transition-colors hover:brightness-95"
+                    >
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder }} onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(p.id)}
+                          className="rounded accent-violet-600 cursor-pointer"
+                        />
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder }}>
+                        <div style={{ width: 36, height: 36, borderRadius: 8, overflow: "hidden", backgroundColor: "var(--base)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>
+                          {renderProductImage(p.image)}
+                        </div>
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 500, color: "var(--txt-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.name}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 600, color: "var(--txt-2)", whiteSpace: "nowrap" }}>
+                        ₹{p.price.toLocaleString()}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder }}>
+                        <span style={{ ...statusBadge[p.status], fontSize: 11, fontWeight: 500, padding: "3px 10px", borderRadius: 999, display: "inline-block" }}>
+                          {p.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 12, color: "var(--txt-3)", whiteSpace: "nowrap" }}>
+                        {p.date}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, color: "var(--txt-3)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {p.category}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, color: "var(--txt-2)", textAlign: "center" }}>
+                        {p.stock}
+                      </td>
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder }} onClick={(e) => e.stopPropagation()}>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            onClick={() => togglePublishStatus(p)}
+                            style={{ border: "1px solid var(--border)", color: "var(--txt-2)", fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer", background: "transparent", whiteSpace: "nowrap" }}
+                            className="hover:bg-[var(--base)] transition-colors"
+                          >
+                            {p.status === "Published" ? "Unpublish" : "Publish"}
+                          </button>
+                          <button
+                            onClick={() => requestDelete(p.id)}
+                            style={{ border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer", background: "transparent", whiteSpace: "nowrap" }}
+                            className="hover:bg-rose-500/10 transition-colors"
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
           {filtered.length === 0 && (
-            <div
-              className="text-center py-16"
-              style={{ color: "var(--txt-3)" }}
-            >
+            <div className="text-center py-16" style={{ color: "var(--txt-3)" }}>
               <p className="text-3xl mb-2">🔍</p>
               <p className="text-sm">No products found</p>
             </div>
@@ -675,7 +660,7 @@ export default function ProductsPage() {
                     {p.status === "Published" ? "Unpublish" : "Publish"}
                   </button>
                   <button
-                    onClick={() => deleteProduct(p.id)}
+                    onClick={() => requestDelete(p.id)}
                     className="text-xs px-3 py-1.5 rounded-lg text-rose-500"
                     style={{ border: "1px solid rgba(239,68,68,0.3)" }}
                   >
@@ -700,6 +685,72 @@ export default function ProductsPage() {
       <p className="text-xs text-right" style={{ color: "var(--txt-3)" }}>
         Showing {filtered.length} of {products.length} products
       </p>
+
+      {/* Single delete confirm */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--txt-1)" }}>Delete Product?</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--txt-3)" }}>This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm" style={{ color: "var(--txt-2)" }}>
+              You are about to permanently delete <span className="font-semibold" style={{ color: "var(--txt-1)" }}>{confirmDelete.name}</span>.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ border: "1px solid var(--border)", color: "var(--txt-2)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => { deleteProduct(confirmDelete.id); setConfirmDelete(null); }}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-rose-600 hover:bg-rose-700"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk delete confirm */}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center" style={{ backgroundColor: "rgba(0,0,0,0.5)" }}>
+          <div className="rounded-2xl p-6 w-full max-w-sm space-y-4" style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">⚠️</span>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--txt-1)" }}>Delete {selected.length} Products?</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--txt-3)" }}>This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-sm" style={{ color: "var(--txt-2)" }}>
+              All selected products will be permanently deleted.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmBulkDelete(false)}
+                className="px-4 py-2 rounded-lg text-sm"
+                style={{ border: "1px solid var(--border)", color: "var(--txt-2)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={bulkDelete}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-white bg-rose-600 hover:bg-rose-700"
+              >
+                Yes, Delete All
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
