@@ -4,7 +4,7 @@ import Link from "next/link";
 import { getAuthToken } from "@/lib/auth";
 
 type Product = {
-  id: number;
+  id: string | number;
   name: string;
   category: string;
   price: number;
@@ -85,11 +85,29 @@ export default function ProductsPage() {
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("All");
   const [view, setView] = useState<"table" | "grid">("table");
-  const [selected, setSelected] = useState<number[]>([]);
+  const [selected, setSelected] = useState<any[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
-  const [confirmDelete, setConfirmDelete] = useState<{ id: number; name: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: any; name: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  const [editingProduct, setEditingProduct] = useState<any | null>(null);
+  const [editForm, setEditForm] = useState<any>({
+    id: "", name: "", skuCode: "", category: "", subCategory: "",
+    sellingPrice: "", mrp: "", stockQuantity: "",
+    shortDescription: "", detailedDescription: "", active: true
+  });
+  const [editLoading, setEditLoading] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const editCategories = {
+    ArtsCraft: ["Crayons", "Water Colours", "Puzzle Crayons"],
+    Stationery: ["Pencil Box", "Compass Box", "Slate", "Stationery Combo Set", "Mechanical Sharpener", "Pencil Case", "Diary"],
+    Bags: ["Tiffin Bags", "Cross Bags", "Folder Bags", "Fancy Bags", "Vanity Case"],
+    Pouches: ["Soft Pouch", "Silicone Pouch"],
+    Drinkware: ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler"],
+    giftFun: ["Metal Money Box", "Gift Hamper", "Mini Fan"],
+  };
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -98,20 +116,160 @@ export default function ProductsPage() {
       setSortDir("asc");
     }
   }
-  function toggleSelect(id: number) {
+  function toggleSelect(id: any) {
     setSelected((p) =>
       p.includes(id) ? p.filter((x) => x !== id) : [...p, id],
     );
   }
-  function toggleAll(ids: number[]) {
+  function toggleAll(ids: any[]) {
     setSelected((p) => (p.length === ids.length ? [] : ids));
   }
-  function requestDelete(id: number) {
+  function requestDelete(id: any) {
     const product = products.find((p) => p.id === id);
     if (product) setConfirmDelete({ id, name: product.name });
   }
 
-  async function deleteProduct(id: number) {
+  async function startEdit(product: Product) {
+    setEditError(null);
+    setEditingProduct(product);
+    setEditLoading(true);
+
+    const token = getAuthToken();
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+      headers["x-auth-token"] = token;
+      headers["x-access-token"] = token;
+      headers["token"] = token;
+    }
+
+    try {
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products/${product.id}`,
+        { headers }
+      );
+      if (!res.ok) throw new Error("Failed to fetch product details");
+      const json = await res.json();
+      if (json.success && json.data) {
+        const p = json.data;
+        setEditForm({
+          id: p._id || product.id,
+          name: p.productName || p.name || product.name,
+          skuCode: p.skuCode || "",
+          category: p.category || product.category || "",
+          subCategory: p.subCategory || "",
+          sellingPrice: p.sellingPrice ?? product.price ?? "",
+          mrp: p.mrp ?? "",
+          stockQuantity: p.stockQuantity ?? product.stock ?? "",
+          shortDescription: p.shortDescription || p.shortDesc || "",
+          detailedDescription: p.detailedDescription || p.detailedDesc || "",
+          active: p.active !== undefined ? p.active : true,
+        });
+      } else {
+        setEditForm({
+          id: product.id,
+          name: product.name,
+          skuCode: "",
+          category: product.category,
+          subCategory: "",
+          sellingPrice: product.price,
+          mrp: product.price,
+          stockQuantity: product.stock,
+          shortDescription: "",
+          detailedDescription: "",
+          active: true,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setEditForm({
+        id: product.id,
+        name: product.name,
+        skuCode: "",
+        category: product.category,
+        subCategory: "",
+        sellingPrice: product.price,
+        mrp: product.price,
+        stockQuantity: product.stock,
+        shortDescription: "",
+        detailedDescription: "",
+        active: true,
+      });
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function saveProduct(e: React.FormEvent) {
+    e.preventDefault();
+    setEditLoading(true);
+    setEditError(null);
+
+    const token = getAuthToken();
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+      headers["x-auth-token"] = token;
+      headers["x-access-token"] = token;
+      headers["token"] = token;
+    }
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products/${editForm.id}`,
+        {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            productName: editForm.name,
+            skuCode: editForm.skuCode,
+            category: editForm.category,
+            subCategory: editForm.subCategory,
+            sellingPrice: Number(editForm.sellingPrice),
+            mrp: Number(editForm.mrp),
+            stockQuantity: Number(editForm.stockQuantity),
+            shortDescription: editForm.shortDescription,
+            detailedDescription: editForm.detailedDescription,
+            active: editForm.active,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to update product: ${response.status}`);
+      }
+
+      const json = await response.json();
+      if (json.success) {
+        setProducts((prev) =>
+          prev.map((p) =>
+            p.id === editForm.id
+              ? {
+                  ...p,
+                  name: editForm.name,
+                  price: Number(editForm.sellingPrice),
+                  stock: Number(editForm.stockQuantity),
+                  category: editForm.category,
+                }
+              : p
+          )
+        );
+        setEditingProduct(null);
+      } else {
+        throw new Error(json.message || "Failed to update product");
+      }
+    } catch (err) {
+      setEditError(err instanceof Error ? err.message : "Failed to update product");
+    } finally {
+      setEditLoading(false);
+    }
+  }
+
+  async function deleteProduct(id: any) {
     setError(null);
 
     const token = getAuthToken();
@@ -564,6 +722,13 @@ export default function ProductsPage() {
                             {p.status === "Published" ? "Unpublish" : "Publish"}
                           </button>
                           <button
+                            onClick={() => startEdit(p)}
+                            style={{ border: "1px solid var(--border)", color: "var(--txt-2)", fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer", background: "transparent", whiteSpace: "nowrap" }}
+                            className="hover:bg-[var(--base)] transition-colors"
+                          >
+                            Edit
+                          </button>
+                          <button
                             onClick={() => requestDelete(p.id)}
                             style={{ border: "1px solid rgba(239,68,68,0.35)", color: "#f87171", fontSize: 11, padding: "4px 10px", borderRadius: 8, cursor: "pointer", background: "transparent", whiteSpace: "nowrap" }}
                             className="hover:bg-rose-500/10 transition-colors"
@@ -660,6 +825,16 @@ export default function ProductsPage() {
                     {p.status === "Published" ? "Unpublish" : "Publish"}
                   </button>
                   <button
+                    onClick={() => startEdit(p)}
+                    className="text-xs px-3 py-1.5 rounded-lg transition-colors"
+                    style={{
+                      border: "1px solid var(--border)",
+                      color: "var(--txt-2)",
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button
                     onClick={() => requestDelete(p.id)}
                     className="text-xs px-3 py-1.5 rounded-lg text-rose-500"
                     style={{ border: "1px solid rgba(239,68,68,0.3)" }}
@@ -748,6 +923,178 @@ export default function ProductsPage() {
                 Yes, Delete All
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Product Modal */}
+      {editingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ backgroundColor: "rgba(0,0,0,0.6)" }}>
+          <div className="rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6 space-y-6 animate-in fade-in zoom-in duration-200" style={{ backgroundColor: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex justify-between items-center border-b pb-4" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-xl font-bold" style={{ color: "var(--txt-1)" }}>Edit Product</h2>
+              <button onClick={() => setEditingProduct(null)} className="text-xl hover:opacity-75" style={{ color: "var(--txt-3)" }}>✕</button>
+            </div>
+
+            {editError && (
+              <div className="p-3 bg-rose-500/10 text-rose-500 border border-rose-500/20 rounded-xl text-sm">
+                {editError}
+              </div>
+            )}
+
+            <form onSubmit={saveProduct} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Product Name */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Product Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.name}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+
+                {/* SKU Code */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>SKU Code</label>
+                  <input
+                    type="text"
+                    required
+                    value={editForm.skuCode}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, skuCode: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+
+                {/* Category */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Category</label>
+                  <select
+                    value={editForm.category}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value, subCategory: "" }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  >
+                    <option value="">Select Category</option>
+                    {Object.keys(editCategories).map((c) => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Subcategory */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Sub Category</label>
+                  <select
+                    value={editForm.subCategory}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, subCategory: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  >
+                    <option value="">Select Subcategory</option>
+                    {editForm.category && (editCategories as any)[editForm.category]?.map((sc: string) => (
+                      <option key={sc} value={sc}>{sc}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Selling Price */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Selling Price (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editForm.sellingPrice}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, sellingPrice: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+
+                {/* MRP */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>MRP (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    value={editForm.mrp}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, mrp: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+
+                {/* Stock Quantity */}
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Stock Quantity</label>
+                  <input
+                    type="number"
+                    required
+                    value={editForm.stockQuantity}
+                    onChange={(e) => setEditForm(prev => ({ ...prev, stockQuantity: e.target.value }))}
+                    style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                    className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                  />
+                </div>
+
+                {/* Status (Active) */}
+                <div className="flex items-center pt-6">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--txt-1)" }}>
+                    <input
+                      type="checkbox"
+                      checked={editForm.active}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, active: e.target.checked }))}
+                      className="w-4.5 h-4.5 accent-violet-600 cursor-pointer rounded"
+                    />
+                    Active / Available
+                  </label>
+                </div>
+              </div>
+
+              {/* Short Description */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Short Description</label>
+                <textarea
+                  value={editForm.shortDescription}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, shortDescription: e.target.value }))}
+                  style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                  className="w-full px-4 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 h-20 resize-none"
+                />
+              </div>
+
+              {/* Detailed Description */}
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Detailed Description</label>
+                <textarea
+                  value={editForm.detailedDescription}
+                  onChange={(e) => setEditForm(prev => ({ ...prev, detailedDescription: e.target.value }))}
+                  style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                  className="w-full px-4 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 h-32 resize-y"
+                />
+              </div>
+
+              <div className="flex gap-2 justify-end border-t pt-4" style={{ borderColor: "var(--border)" }}>
+                <button
+                  type="button"
+                  onClick={() => setEditingProduct(null)}
+                  className="px-5 py-2.5 rounded-xl text-sm"
+                  style={{ border: "1px solid var(--border)", color: "var(--txt-2)" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editLoading}
+                  className="px-5 py-2.5 text-white rounded-xl text-sm font-semibold bg-violet-600 hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {editLoading ? "Saving..." : "Save Changes"}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
