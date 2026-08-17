@@ -951,7 +951,7 @@ export default function ProductsPage() {
                     type="text"
                     required
                     value={editForm.name}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, name: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
@@ -964,7 +964,7 @@ export default function ProductsPage() {
                     type="text"
                     required
                     value={editForm.skuCode}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, skuCode: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, skuCode: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
@@ -975,7 +975,7 @@ export default function ProductsPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Category</label>
                   <select
                     value={editForm.category}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, category: e.target.value, subCategory: "" }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, category: e.target.value, subCategory: "" }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
@@ -991,7 +991,7 @@ export default function ProductsPage() {
                   <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Sub Category</label>
                   <select
                     value={editForm.subCategory}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, subCategory: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, subCategory: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   >
@@ -1009,7 +1009,7 @@ export default function ProductsPage() {
                     type="number"
                     required
                     value={editForm.sellingPrice}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, sellingPrice: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, sellingPrice: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
@@ -1022,7 +1022,7 @@ export default function ProductsPage() {
                     type="number"
                     required
                     value={editForm.mrp}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, mrp: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, mrp: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
@@ -1035,7 +1035,7 @@ export default function ProductsPage() {
                     type="number"
                     required
                     value={editForm.stockQuantity}
-                    onChange={(e) => setEditForm(prev => ({ ...prev, stockQuantity: e.target.value }))}
+                    onChange={(e) => setEditForm((prev: any) => ({ ...prev, stockQuantity: e.target.value }))}
                     style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                     className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
                   />
@@ -1047,7 +1047,7 @@ export default function ProductsPage() {
                     <input
                       type="checkbox"
                       checked={editForm.active}
-                      onChange={(e) => setEditForm(prev => ({ ...prev, active: e.target.checked }))}
+                      onChange={(e) => setEditForm((prev: any) => ({ ...prev, active: e.target.checked }))}
                       className="w-4.5 h-4.5 accent-violet-600 cursor-pointer rounded"
                     />
                     Active / Available
@@ -1060,7 +1060,7 @@ export default function ProductsPage() {
                 <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Short Description</label>
                 <textarea
                   value={editForm.shortDescription}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, shortDescription: e.target.value }))}
+                  onChange={(e) => setEditForm((prev: any) => ({ ...prev, shortDescription: e.target.value }))}
                   style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                   className="w-full px-4 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 h-20 resize-none"
                 />
@@ -1071,7 +1071,7 @@ export default function ProductsPage() {
                 <label className="block text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--txt-3)" }}>Detailed Description</label>
                 <textarea
                   value={editForm.detailedDescription}
-                  onChange={(e) => setEditForm(prev => ({ ...prev, detailedDescription: e.target.value }))}
+                  onChange={(e) => setEditForm((prev: any) => ({ ...prev, detailedDescription: e.target.value }))}
                   style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
                   className="w-full px-4 py-2 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 h-32 resize-y"
                 />
