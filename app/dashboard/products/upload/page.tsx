@@ -8,8 +8,8 @@ const CATEGORIES: Record<string, string[]> = {
   Stationery:  ["Pencil Box", "Compass Box", "Slate", "Stationery Combo Set", "Mechanical Sharpener", "Pencil Case", "Diary"],
   Bags: ["Tiffin Bags", "Cross Bags", "Folder Bags", "Fancy Bags", "Vanity Case"],
   Pouches:    ["Soft Pouch", "Silicone Pouch"],
-  Drinkware:   ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler"],
-  giftFun:     ["Metal Money Box", "Gift Hamper", "Mini Fan"],
+  "Drinkware/Lunchware":   ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler", "600ml Sippers", "Lunch Boxes"],
+  giftFun:     ["Metal Money Box", "Gift Hamper", "Mini Fan", "Tissue Paper Box"],
 };
 
 type Variant = { id: number; color: string; design: string; price: string; stock: string };

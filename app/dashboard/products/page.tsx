@@ -12,6 +12,7 @@ type Product = {
   date: string;
   image: string | { url: string } | null;
   stock: number;
+  deletedAt?: string | Date | null;
 };
 
 
@@ -78,6 +79,20 @@ function renderProductImage(image: Product["image"]) {
   );
 }
 
+function getRemainingDays(deletedAt: any): string {
+  if (!deletedAt) return "7 days";
+  const deletedDate = new Date(deletedAt);
+  const expiryDate = new Date(deletedDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const diffMs = expiryDate.getTime() - Date.now();
+  if (diffMs <= 0) return "soon";
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays <= 1) {
+    const diffHours = Math.ceil(diffMs / (1000 * 60 * 60));
+    return `${diffHours} hour${diffHours > 1 ? "s" : ""}`;
+  }
+  return `${diffDays} days`;
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -90,6 +105,14 @@ export default function ProductsPage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [confirmDelete, setConfirmDelete] = useState<{ id: any; name: string } | null>(null);
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+  const [dashboardFilterCategories, setDashboardFilterCategories] = useState<string[]>([]);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    const closeDropdown = () => setCategoryDropdownOpen(false);
+    window.addEventListener("click", closeDropdown);
+    return () => window.removeEventListener("click", closeDropdown);
+  }, []);
 
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>({
@@ -105,8 +128,8 @@ export default function ProductsPage() {
     Stationery: ["Pencil Box", "Compass Box", "Slate", "Stationery Combo Set", "Mechanical Sharpener", "Pencil Case", "Diary"],
     Bags: ["Tiffin Bags", "Cross Bags", "Folder Bags", "Fancy Bags", "Vanity Case"],
     Pouches: ["Soft Pouch", "Silicone Pouch"],
-    Drinkware: ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler"],
-    giftFun: ["Metal Money Box", "Gift Hamper", "Mini Fan"],
+    "Drinkware/Lunchware": ["Sippers", "500 ml Sipper", "900 ml Plastic Bottle Sipper", "Tumbler", "600ml Sippers", "Lunch Boxes"],
+    giftFun: ["Metal Money Box", "Gift Hamper", "Mini Fan", "Tissue Paper Box"],
   };
 
   function toggleSort(key: SortKey) {
@@ -297,7 +320,9 @@ export default function ProductsPage() {
         throw new Error(`Failed to delete product: ${response.status}`);
       }
 
-      setProducts((prev) => prev.filter((x) => x.id !== id));
+      setProducts((prev) =>
+        prev.map((x) => (x.id === id ? { ...x, status: "Draft" as const, deletedAt: new Date().toISOString() } : x))
+      );
       setSelected((prev) => prev.filter((x) => x !== id));
     } catch (err) {
       setError(
@@ -396,7 +421,7 @@ export default function ProductsPage() {
 
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products/dashboard`,
+          `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/products/dashboard?limit=1000`,
           {
             method: "GET",
             headers,
@@ -431,6 +456,8 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
+  const uniqueProductCategories = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+
   const filtered = Array.isArray(products)
     ? products
         .filter((p) => {
@@ -438,7 +465,8 @@ export default function ProductsPage() {
             p.name.toLowerCase().includes(search.toLowerCase()) ||
             p.category.toLowerCase().includes(search.toLowerCase());
           const mf = filter === "All" || p.status === filter;
-          return ms && mf;
+          const mc = dashboardFilterCategories.length === 0 || (p.category && dashboardFilterCategories.includes(p.category));
+          return ms && mf && mc;
         })
         .sort((a, b) => {
           let c = 0;
@@ -650,8 +678,73 @@ export default function ProductsPage() {
                     </th>
                   ))}
                   {/* category */}
-                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
-                    Category
+                  <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600, position: "relative" }}>
+                    <div className="flex items-center gap-1.5 cursor-pointer select-none hover:text-[var(--txt-1)]" onClick={(e) => { e.stopPropagation(); setCategoryDropdownOpen(!categoryDropdownOpen); }}>
+                      <span>Category</span>
+                      <span className="text-[9px]">▼</span>
+                      {dashboardFilterCategories.length > 0 && (
+                        <span className="bg-violet-600 text-white rounded-full w-4.5 h-4.5 text-[9px] flex items-center justify-center font-bold">
+                          {dashboardFilterCategories.length}
+                        </span>
+                      )}
+                    </div>
+
+                    {categoryDropdownOpen && (
+                      <div 
+                        onClick={(e) => e.stopPropagation()}
+                        style={{
+                          position: "absolute",
+                          top: "100%",
+                          left: 0,
+                          backgroundColor: "var(--card)",
+                          border: "1px solid var(--border)",
+                          borderRadius: "12px",
+                          boxShadow: "0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05)",
+                          zIndex: 50,
+                          minWidth: "180px",
+                          padding: "10px",
+                          textTransform: "none",
+                          letterSpacing: "normal",
+                          fontWeight: "normal",
+                          textAlign: "left"
+                        }}
+                      >
+                        <div className="font-semibold text-xs mb-2 pb-1.5 border-b border-[var(--border)] text-[var(--txt-2)] flex justify-between items-center">
+                          <span>Filter Categories</span>
+                          {dashboardFilterCategories.length > 0 && (
+                            <button
+                              onClick={() => setDashboardFilterCategories([])}
+                              className="text-[10px] text-violet-500 hover:underline cursor-pointer"
+                            >
+                              Clear
+                            </button>
+                          )}
+                        </div>
+                        <div className="max-h-48 overflow-y-auto space-y-1.5">
+                          {uniqueProductCategories.map((cat) => {
+                            const isChecked = dashboardFilterCategories.includes(cat);
+                            return (
+                              <label key={cat} className="flex items-center gap-2 text-xs text-[var(--txt-2)] cursor-pointer hover:text-[var(--txt-1)]">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setDashboardFilterCategories((prev) =>
+                                      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+                                    );
+                                  }}
+                                  className="rounded accent-violet-600 cursor-pointer"
+                                />
+                                <span className="truncate">{cat}</span>
+                              </label>
+                            );
+                          })}
+                          {uniqueProductCategories.length === 0 && (
+                            <div className="text-xs text-gray-400 py-2 text-center">No categories found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </th>
                   {/* stock */}
                   <th style={{ padding: "10px 12px", borderBottom: "2px solid var(--border)", borderRight: "1px solid var(--border)", color: "var(--txt-3)", fontSize: "11px", textTransform: "uppercase", letterSpacing: "0.08em", textAlign: "left", fontWeight: 600 }}>
@@ -692,8 +785,13 @@ export default function ProductsPage() {
                           {renderProductImage(p.image)}
                         </div>
                       </td>
-                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 500, color: "var(--txt-1)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.name}
+                      <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 500, color: "var(--txt-1)", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        <div>{p.name}</div>
+                        {p.status === "Draft" && (
+                          <div className="text-[10px] text-rose-500 font-semibold mt-1" style={{ whiteSpace: "normal" }}>
+                            ⚠️ Auto-deletes in {getRemainingDays(p.deletedAt)} if no action taken
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding: "10px 12px", borderBottom: cellBorder, borderRight: cellBorder, fontSize: 13, fontWeight: 600, color: "var(--txt-2)", whiteSpace: "nowrap" }}>
                         ₹{p.price.toLocaleString()}
@@ -799,6 +897,11 @@ export default function ProductsPage() {
                 <p className="text-xs mt-1" style={{ color: "var(--txt-3)" }}>
                   {p.category}
                 </p>
+                {p.status === "Draft" && (
+                  <p className="text-[10px] text-rose-500 font-semibold mt-1">
+                    ⚠️ Auto-deletes in {getRemainingDays(p.deletedAt)} if no action taken
+                  </p>
+                )}
                 <div className="flex items-center justify-between mt-3">
                   <span
                     className="font-bold text-sm"
