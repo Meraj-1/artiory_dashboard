@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { clearAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/app/components/ThemeToggle";
 
@@ -60,6 +60,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const router   = useRouter();
   const [open, setOpen] = useState(false);
+  const [unreadNotifs, setUnreadNotifs] = useState<number>(0);
+  const [pendingOrders, setPendingOrders] = useState<number>(0);
+
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("artiory_token") : null;
+        const headers: Record<string, string> = { Accept: "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+
+        // Fetch live notifications count
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/notifications`, { headers })
+          .then((r) => r.json())
+          .then((d) => {
+            if (d?.stats?.unread !== undefined) setUnreadNotifs(d.stats.unread);
+          })
+          .catch(() => {});
+
+        // Fetch orders count
+        fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/orders`, { headers })
+          .then((r) => r.json())
+          .then((d) => {
+            const list = Array.isArray(d?.data) ? d.data : Array.isArray(d) ? d : [];
+            const pending = list.filter((o: any) => ["Pending", "Paid"].includes(o.status) && !o.awbNumber).length;
+            setPendingOrders(pending);
+          })
+          .catch(() => {});
+      } catch {}
+    };
+
+    fetchBadges();
+    const interval = setInterval(fetchBadges, 20000);
+    return () => clearInterval(interval);
+  }, [pathname]);
 
   function handleLogout() {
     clearAuth();
@@ -147,15 +181,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       }}>
                         {item.label}
                       </span>
-                      {item.badge && (
-                        <>
-                          <span style={{ opacity: open ? 1 : 0, transition: "opacity 0.18s ease" }}
-                            className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
-                            {item.badge}
-                          </span>
-                          {!open && <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />}
-                        </>
-                      )}
+                      {(() => {
+                        const count = item.href === "/dashboard/notifications" ? unreadNotifs : item.href === "/dashboard/orders" ? pendingOrders : item.badge;
+                        if (!count || count <= 0) return null;
+                        return (
+                          <>
+                            <span style={{ opacity: open ? 1 : 0, transition: "opacity 0.18s ease" }}
+                              className="bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0">
+                              {count}
+                            </span>
+                            {!open && <span className="absolute top-1 right-1 w-2 h-2 bg-rose-500 rounded-full" />}
+                          </>
+                        );
+                      })()}
                     </Link>
                   );
                 })}

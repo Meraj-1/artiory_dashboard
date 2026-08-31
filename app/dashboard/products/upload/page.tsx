@@ -523,10 +523,32 @@ export default function UploadProductPage() {
                 </div>
 
                 <div>
-                  <label style={{ color: "var(--txt-3)" }} className={labelClass}>Weight (grams)</label>
-                  <input name="weight" type="number" value={form.weight} onChange={set}
-                    placeholder="500" style={inputStyle} className={inputClass} />
-                  <p className="text-xs mt-1" style={{ color: "var(--txt-3)" }}>Used for shipping calculation</p>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label style={{ color: "var(--txt-3)" }} className="block text-xs font-semibold uppercase tracking-wide">
+                      Product Weight (gm)
+                    </label>
+                    <span className="text-[11px] font-bold text-violet-600 bg-violet-50 px-2 py-0.5 rounded-md border border-violet-100">
+                      Grams (gm)
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      name="weight"
+                      type="number"
+                      min="1"
+                      value={form.weight}
+                      onChange={set}
+                      placeholder="e.g. 150"
+                      style={inputStyle}
+                      className={inputClass + " pr-12"}
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      gm
+                    </span>
+                  </div>
+                  <p className="text-xs mt-1" style={{ color: "var(--txt-3)" }}>
+                    Used for automated shipping & courier rate calculation
+                  </p>
                 </div>
 
                 <div>

@@ -2,7 +2,12 @@
 import React, { useState, useEffect } from "react";
 import { getAuthToken } from "@/lib/auth";
 
-const card = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
+const card = {
+  backgroundColor: "var(--card)",
+  borderWidth: "1px",
+  borderStyle: "solid",
+  borderColor: "var(--border)"
+};
 
 type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 type ItemType    = "Product" | "Combo";
@@ -105,7 +110,15 @@ export default function InventoryPage() {
         `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/inventory/${encodeURIComponent(edit.sku)}`,
         { method: "PATCH", headers, body: JSON.stringify({ stock: stockVal, reorderLevel: item?.reorderLevel }) },
       );
-      const json = await res.json();
+      
+      const text = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(text || `Server error (${res.status})`);
+      }
+
       if (!res.ok) throw new Error(json.message || "Failed to update");
       setItems((p) => p.map((i) => i.sku !== edit.sku ? i : {
         ...i, stock: stockVal, status: calcStatus(stockVal, i.reorderLevel), lastUpdated: now(),
@@ -129,7 +142,15 @@ export default function InventoryPage() {
         `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/inventory/${encodeURIComponent(restock.sku)}`,
         { method: "PATCH", headers, body: JSON.stringify({ stock: newStock, reorderLevel: item.reorderLevel }) },
       );
-      const json = await res.json();
+      
+      const text = await res.text();
+      let json: any = {};
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(text || `Server error (${res.status})`);
+      }
+
       if (!res.ok) throw new Error(json.message || "Failed to restock");
       setItems((p) => p.map((i) => i.sku !== restock.sku ? i : {
         ...i, stock: newStock, status: calcStatus(newStock, i.reorderLevel), lastUpdated: now(),
@@ -170,7 +191,7 @@ export default function InventoryPage() {
           { label: "Combo SKUs",   value: comboCount, color: "#8b5cf6", alert: false },
         ].map((s) => (
           <div key={s.label}
-            style={{ ...card, borderRadius: 16, padding: 16, ...(s.alert ? { borderColor: s.color + "40" } : {}) }}>
+            style={{ ...card, borderRadius: 16, padding: 16, borderColor: s.alert ? `${s.color}66` : "var(--border)" }}>
             <p style={{ fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em", color: "var(--txt-3)" }}>
               {s.label}
             </p>
@@ -211,7 +232,7 @@ export default function InventoryPage() {
           <span style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--txt-3)", fontSize: 14 }}>⌕</span>
           <input type="text" placeholder="Search SKU or name..." value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ backgroundColor: "var(--card)", borderColor: "var(--border)", color: "var(--txt-1)", paddingLeft: 32, paddingRight: 16, paddingTop: 8, paddingBottom: 8, borderRadius: 8, border: "1px solid var(--border)", fontSize: 13, width: 220, outline: "none" }}
+            style={{ backgroundColor: "var(--card)", borderWidth: "1px", borderStyle: "solid", borderColor: "var(--border)", color: "var(--txt-1)", paddingLeft: 32, paddingRight: 16, paddingTop: 8, paddingBottom: 8, borderRadius: 8, fontSize: 13, width: 220, outline: "none" }}
           />
         </div>
       </div>

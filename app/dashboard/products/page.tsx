@@ -117,7 +117,7 @@ export default function ProductsPage() {
   const [editingProduct, setEditingProduct] = useState<any | null>(null);
   const [editForm, setEditForm] = useState<any>({
     id: "", name: "", skuCode: "", category: "", subCategory: "",
-    sellingPrice: "", mrp: "", stockQuantity: "",
+    sellingPrice: "", mrp: "", stockQuantity: "", weight: "",
     shortDescription: "", detailedDescription: "", active: true
   });
   const [editLoading, setEditLoading] = useState(false);
@@ -184,6 +184,7 @@ export default function ProductsPage() {
           sellingPrice: p.sellingPrice ?? product.price ?? "",
           mrp: p.mrp ?? "",
           stockQuantity: p.stockQuantity ?? product.stock ?? "",
+          weight: p.weight || p.weightGrams || "",
           shortDescription: p.shortDescription || p.shortDesc || "",
           detailedDescription: p.detailedDescription || p.detailedDesc || "",
           active: p.active !== undefined ? p.active : true,
@@ -198,6 +199,7 @@ export default function ProductsPage() {
           sellingPrice: product.price,
           mrp: product.price,
           stockQuantity: product.stock,
+          weight: "",
           shortDescription: "",
           detailedDescription: "",
           active: true,
@@ -214,6 +216,7 @@ export default function ProductsPage() {
         sellingPrice: product.price,
         mrp: product.price,
         stockQuantity: product.stock,
+        weight: "",
         shortDescription: "",
         detailedDescription: "",
         active: true,
@@ -254,6 +257,8 @@ export default function ProductsPage() {
             sellingPrice: Number(editForm.sellingPrice),
             mrp: Number(editForm.mrp),
             stockQuantity: Number(editForm.stockQuantity),
+            weight: Number(editForm.weight || 0),
+            weightGrams: Number(editForm.weight || 0),
             shortDescription: editForm.shortDescription,
             detailedDescription: editForm.detailedDescription,
             active: editForm.active,
@@ -1144,8 +1149,34 @@ export default function ProductsPage() {
                   />
                 </div>
 
+                {/* Weight (gm) */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--txt-3)" }}>
+                      Weight (gm)
+                    </label>
+                    <span className="text-[10px] font-bold text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">
+                      Grams
+                    </span>
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 150"
+                      value={editForm.weight}
+                      onChange={(e) => setEditForm((prev: any) => ({ ...prev, weight: e.target.value }))}
+                      style={{ backgroundColor: "var(--base)", borderColor: "var(--border)", color: "var(--txt-1)" }}
+                      className="w-full px-4 py-2.5 pr-10 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-slate-400 pointer-events-none">
+                      gm
+                    </span>
+                  </div>
+                </div>
+
                 {/* Status (Active) */}
-                <div className="flex items-center pt-6">
+                <div className="flex items-center pt-2 md:pt-4">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-semibold uppercase tracking-wide" style={{ color: "var(--txt-1)" }}>
                     <input
                       type="checkbox"
