@@ -175,6 +175,8 @@ export default function ProductsPage() {
       const json = await res.json();
       if (json.success && json.data) {
         const p = json.data;
+        const rawW = Number(p.weight || p.weightGrams || 0);
+        const weightInGrams = rawW > 0 && rawW <= 5 ? Math.round(rawW * 1000) : (rawW > 0 ? rawW : "");
         setEditForm({
           id: p._id || product.id,
           name: p.productName || p.name || product.name,
@@ -184,7 +186,7 @@ export default function ProductsPage() {
           sellingPrice: p.sellingPrice ?? product.price ?? "",
           mrp: p.mrp ?? "",
           stockQuantity: p.stockQuantity ?? product.stock ?? "",
-          weight: p.weight || p.weightGrams || "",
+          weight: weightInGrams,
           shortDescription: p.shortDescription || p.shortDesc || "",
           detailedDescription: p.detailedDescription || p.detailedDesc || "",
           active: p.active !== undefined ? p.active : true,
