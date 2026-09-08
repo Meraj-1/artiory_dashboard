@@ -442,6 +442,11 @@ export default function OrdersPage() {
                     <td className="px-5 py-4 text-sm font-black text-white font-mono">₹{o.totalPrice.toLocaleString()}</td>
                     <td className="px-5 py-4">
                       <span className="text-xs font-black px-3 py-1 rounded-full border border-zinc-700" style={statusBadge[o.status] || { bg: "rgba(100,100,100,0.12)", color: "#ffffff" }}>{o.status}</span>
+                      {((o as any).sabpaisaTxnId || (o as any).clientTxnId) && (
+                        <p className="text-[10px] font-mono text-zinc-400 mt-1 max-w-[150px] truncate" title={(o as any).sabpaisaTxnId || (o as any).clientTxnId}>
+                          Txn: {(o as any).sabpaisaTxnId && (o as any).sabpaisaTxnId !== "N/A" ? (o as any).sabpaisaTxnId : (o as any).clientTxnId}
+                        </p>
+                      )}
                     </td>
                     <td className="px-5 py-4 text-xs">
                       {o.awbNumber ? (
@@ -667,20 +672,62 @@ export default function OrdersPage() {
                 </p>
               </div>
 
-              <div className="flex gap-3 mt-6 pt-4 border-t border-zinc-800">
+              <div className="flex flex-col sm:flex-row gap-2 mt-6 pt-4 border-t border-zinc-800">
                 <button
                   type="button"
                   onClick={() => setReconcileOrderInstance(null)}
-                  className="flex-1 py-2.5 text-sm font-bold text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-900"
+                  className="py-2.5 px-4 text-xs font-bold text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-900"
                 >
                   Cancel
                 </button>
                 <button
+                  type="button"
+                  disabled={reconcileLoading}
+                  onClick={async () => {
+                    if (!confirm("Are you sure you verified this transaction on SabPaisa and want to mark this order as Paid?")) return;
+                    try {
+                      setReconcileLoading(true);
+                      const token = getAuthToken();
+                      const headers: Record<string, string> = {
+                        Accept: "application/json",
+                        "Content-Type": "application/json",
+                      };
+                      if (token) headers["Authorization"] = `Bearer ${token}`;
+                      const res = await fetch(
+                        `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/orders/reconcile`,
+                        {
+                          method: "POST",
+                          headers,
+                          body: JSON.stringify({
+                            orderId: reconcileOrderInstance._id,
+                            clientTxnId: reconcileTxnId || (reconcileOrderInstance as any).clientTxnId || reconcileOrderInstance._id,
+                            forcePaid: true,
+                          }),
+                        }
+                      );
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json.message || "Failed to mark as Paid");
+                      setOrders((prev) =>
+                        prev.map((o) => (o._id === reconcileOrderInstance._id ? { ...o, status: "Paid" } : o))
+                      );
+                      setReconcileOrderInstance(null);
+                      alert("Order successfully marked as Paid!");
+                    } catch (e: any) {
+                      setReconcileError(e.message || "Failed to mark as Paid");
+                    } finally {
+                      setReconcileLoading(false);
+                    }
+                  }}
+                  className="py-2.5 px-4 text-xs font-black text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/25 disabled:opacity-50"
+                >
+                  ✓ Confirm Paid (Manual)
+                </button>
+                <button
                   type="submit"
                   disabled={reconcileLoading}
-                  className="flex-1 py-2.5 text-sm font-black text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  className="flex-1 py-2.5 px-4 text-xs font-black text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
                 >
-                  {reconcileLoading ? "Verifying..." : "Verify & Reconcile"}
+                  {reconcileLoading ? "Verifying..." : "Verify with SabPaisa"}
                 </button>
               </div>
             </form>
