@@ -40,12 +40,14 @@ type Order = {
 };
 
 const statusBadge: Record<string, { bg: string; color: string }> = {
-  Pending: { bg: "rgba(59,130,246,0.12)", color: "#3b82f6" },
   Paid: { bg: "rgba(34,197,94,0.12)", color: "#22c55e" },
   Shipped: { bg: "rgba(168,85,247,0.12)", color: "#a855f7" },
+  "In-Transit": { bg: "rgba(14,165,233,0.12)", color: "#0ea5e9" },
   Delivered: { bg: "rgba(16,185,129,0.12)", color: "#10b981" },
+  RTO: { bg: "rgba(249,115,22,0.12)", color: "#f97316" },
   Cancelled: { bg: "rgba(239,68,68,0.12)", color: "#ef4444" },
   Failed: { bg: "rgba(244,63,94,0.12)", color: "#f43f5e" },
+  Pending: { bg: "rgba(59,130,246,0.12)", color: "#3b82f6" },
 };
 
 const cardStyle = { backgroundColor: "var(--card)", border: "1px solid var(--border)" };
@@ -361,11 +363,11 @@ export default function OrdersPage() {
     <div className="space-y-6 max-w-7xl mx-auto pb-16 text-white">
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {["Pending", "Paid", "Delivered", "Cancelled"].map((s) => (
+        {["Paid", "Shipped", "In-Transit", "Delivered"].map((s) => (
           <div key={s} style={{ backgroundColor: "#09090b", border: "1px solid #27272a" }} className="rounded-2xl p-5 shadow-sm bg-zinc-950/80">
             <p className="text-xs font-bold uppercase tracking-wider text-zinc-400">{s} Orders</p>
             <p className="text-3xl font-black mt-1 text-white">
-              {orders.filter((o) => o.status === s).length}
+              {orders.filter((o) => o.status === s || (s === "In-Transit" && o.shipmentStatus === "In-Transit")).length}
             </p>
             <span className="text-xs font-bold px-3 py-1 rounded-full mt-2.5 inline-block" style={statusBadge[s]}>{s}</span>
           </div>
@@ -375,7 +377,7 @@ export default function OrdersPage() {
       {/* Filter + Revenue */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-2 flex-wrap">
-          {["All", "Pending", "Paid", "Shipped", "Delivered", "Cancelled"].map((s) => (
+          {["All", "Paid", "Shipped", "In-Transit", "Delivered"].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
