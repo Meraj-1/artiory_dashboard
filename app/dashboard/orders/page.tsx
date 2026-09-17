@@ -296,6 +296,9 @@ export default function OrdersPage() {
     e.preventDefault();
     if (!shippingOrder) return;
 
+    const MAX_RETRIES = 3;
+    let lastError = "";
+
     try {
       setShippingLoading(true);
       setShippingError(null);
@@ -312,45 +315,67 @@ export default function OrdersPage() {
         headers["token"] = token;
       }
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/logistics/orders/${shippingOrder._id}/ship`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
-            weight: Number(weight),
-            length: Number(length),
-            width: Number(width),
-            height: Number(height),
-          }),
-        }
-      );
+      let json: any = null;
 
-      const json = await res.json();
-      if (!res.ok) {
-        throw new Error(json.message || "Failed to book shipment");
+      for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          setShippingError(`Booking shipment... (attempt ${attempt}/${MAX_RETRIES})`);
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/logistics/orders/${shippingOrder._id}/ship`,
+            {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                weight: Number(weight),
+                length: Number(length),
+                width: Number(width),
+                height: Number(height),
+              }),
+            }
+          );
+          json = await res.json();
+
+          if (res.ok && json.success) {
+            // SUCCESS - update local state and close modal
+            setOrders((prev) =>
+              prev.map((o) =>
+                o._id === shippingOrder._id
+                  ? {
+                      ...o,
+                      status: "Shipped" as const,
+                      awbNumber: json.awbNumber,
+                      courierName: json.courierName,
+                      shippingLabelUrl: json.shippingLabelUrl,
+                      shipmentStatus: "Shipped" as const,
+                    }
+                  : o
+              )
+            );
+            setShippingOrder(null);
+            setShippingError(null);
+            alert(`✅ Shipment booked! AWB: ${json.awbNumber} (${json.courierName})`);
+            return;
+          }
+
+          lastError = json?.message || `iThink returned error on attempt ${attempt}`;
+
+          if (attempt < MAX_RETRIES) {
+            setShippingError(`Attempt ${attempt} failed: ${lastError}. Retrying...`);
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+          }
+        } catch (fetchErr: any) {
+          lastError = fetchErr?.message || "Network error";
+          if (attempt < MAX_RETRIES) {
+            setShippingError(`Attempt ${attempt} failed: ${lastError}. Retrying...`);
+            await new Promise((r) => setTimeout(r, 2000 * attempt));
+          }
+        }
       }
 
-      // Update local state
-      setOrders((prev) =>
-        prev.map((o) =>
-          o._id === shippingOrder._id
-            ? {
-                ...o,
-                awbNumber: json.awbNumber,
-                courierName: json.courierName,
-                shippingLabelUrl: json.shippingLabelUrl,
-                shipmentStatus: "Shipped",
-              }
-            : o
-        )
+      // All retries exhausted
+      setShippingError(
+        `❌ Shipment booking failed after ${MAX_RETRIES} attempts.\n\nReason: ${lastError}\n\nPlease check iThink dashboard or try again manually.`
       );
-
-      setShippingOrder(null);
-      alert("Shipment booked successfully! AWB: " + json.awbNumber);
-    } catch (err: any) {
-      console.error(err);
-      setShippingError(err.message || "Logistics booking failed");
     } finally {
       setShippingLoading(false);
     }
