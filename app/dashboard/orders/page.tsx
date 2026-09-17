@@ -377,7 +377,7 @@ export default function OrdersPage() {
       {/* Filter + Revenue */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-2 flex-wrap">
-          {["All", "Paid", "Shipped", "In-Transit", "Delivered"].map((s) => (
+          {["All", "Paid", "Shipped", "In-Transit", "Delivered", "Failed"].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
