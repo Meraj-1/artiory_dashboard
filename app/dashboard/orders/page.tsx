@@ -288,7 +288,7 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 10000); // Auto-refresh orders list every 10 seconds
+    const interval = setInterval(fetchOrders, 30000); // Refresh every 30s
     return () => clearInterval(interval);
   }, []);
 
@@ -402,7 +402,7 @@ export default function OrdersPage() {
       {/* Filter + Revenue */}
       <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
         <div className="flex gap-2 flex-wrap">
-          {["All", "Paid", "Shipped", "In-Transit", "Delivered", "Failed"].map((s) => (
+          {["All", "Pending", "Paid", "Shipped", "In-Transit", "Delivered", "Failed"].map((s) => (
             <button
               key={s}
               onClick={() => setFilter(s)}
@@ -682,43 +682,21 @@ export default function OrdersPage() {
             )}
 
             <form onSubmit={handleReconcileOrder} className="space-y-4">
-              <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-1">
-                  SabPaisa Client Transaction ID (merchantTxnId)
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 6a884a70896d0d3ebf61e722-849999"
-                  value={reconcileTxnId}
-                  onChange={(e) => setReconcileTxnId(e.target.value)}
-                  className="w-full border border-zinc-700 bg-zinc-900 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-white text-white placeholder-zinc-500"
-                />
-                <p className="text-[11px] text-zinc-400 mt-1">
-                  Copy this from your transaction row on the SabPaisa Merchant Panel.
-                </p>
-              </div>
 
-              <div className="flex flex-col sm:flex-row gap-2 mt-6 pt-4 border-t border-zinc-800">
-                <button
-                  type="button"
-                  onClick={() => setReconcileOrderInstance(null)}
-                  className="py-2.5 px-4 text-xs font-bold text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-900"
-                >
-                  Cancel
-                </button>
+              {/* Confirm Paid (Manual) - Primary action, always visible */}
+              <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/30 rounded-xl">
+                <p className="text-xs font-bold text-emerald-300 mb-1">✅ Payment verified on SabPaisa dashboard?</p>
+                <p className="text-[11px] text-zinc-400 mb-3">Directly mark this order as Paid without API verification.</p>
                 <button
                   type="button"
                   disabled={reconcileLoading}
                   onClick={async () => {
-                    if (!confirm("Are you sure you verified this transaction on SabPaisa and want to mark this order as Paid?")) return;
+                    if (!confirm("Confirm: You have verified this payment on SabPaisa dashboard and want to mark it as Paid?")) return;
                     try {
                       setReconcileLoading(true);
+                      setReconcileError(null);
                       const token = getAuthToken();
-                      const headers: Record<string, string> = {
-                        Accept: "application/json",
-                        "Content-Type": "application/json",
-                      };
+                      const headers: Record<string, string> = { Accept: "application/json", "Content-Type": "application/json" };
                       if (token) headers["Authorization"] = `Bearer ${token}`;
                       const res = await fetch(
                         `${process.env.NEXT_PUBLIC_API_URL || "https://api.artiory.com"}/api/orders/reconcile`,
@@ -734,27 +712,62 @@ export default function OrdersPage() {
                       );
                       const json = await res.json();
                       if (!res.ok) throw new Error(json.message || "Failed to mark as Paid");
-                      setOrders((prev) =>
-                        prev.map((o) => (o._id === reconcileOrderInstance._id ? { ...o, status: "Paid" } : o))
-                      );
+                      setOrders((prev) => prev.map((o) => (o._id === reconcileOrderInstance!._id ? { ...o, status: "Paid" } : o)));
                       setReconcileOrderInstance(null);
-                      alert("Order successfully marked as Paid!");
+                      alert("✅ Order marked as Paid!");
                     } catch (e: any) {
                       setReconcileError(e.message || "Failed to mark as Paid");
                     } finally {
                       setReconcileLoading(false);
                     }
                   }}
-                  className="py-2.5 px-4 text-xs font-black text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 rounded-lg hover:bg-emerald-500/25 disabled:opacity-50"
+                  className="w-full py-2.5 text-xs font-black text-white bg-emerald-600 hover:bg-emerald-500 rounded-lg disabled:opacity-50 transition"
                 >
-                  ✓ Confirm Paid (Manual)
+                  {reconcileLoading ? "Processing..." : "✓ Mark as Paid (Manual Confirm)"}
+                </button>
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-px bg-zinc-800" />
+                <span className="text-[10px] text-zinc-500 font-bold uppercase">or verify via SabPaisa API</span>
+                <div className="flex-1 h-px bg-zinc-800" />
+              </div>
+
+              {/* SabPaisa API verify - only if clientTxnId exists */}
+              <div>
+                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-400 mb-1">
+                  SabPaisa Transaction ID
+                  {(reconcileOrderInstance as any).clientTxnId && (
+                    <span className="ml-2 text-emerald-400 normal-case font-normal">(auto-filled from order)</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 6a884a70896d0d3ebf61e722-849999"
+                  value={reconcileTxnId}
+                  onChange={(e) => setReconcileTxnId(e.target.value)}
+                  className="w-full border border-zinc-700 bg-zinc-900 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-white text-white placeholder-zinc-500"
+                />
+                {!(reconcileOrderInstance as any).clientTxnId && (
+                  <p className="text-[11px] text-zinc-500 mt-1">Copy from SabPaisa Merchant Panel → Transactions.</p>
+                )}
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setReconcileOrderInstance(null)}
+                  className="py-2.5 px-4 text-xs font-bold text-zinc-300 border border-zinc-700 rounded-lg hover:bg-zinc-900"
+                >
+                  Cancel
                 </button>
                 <button
                   type="submit"
-                  disabled={reconcileLoading}
-                  className="flex-1 py-2.5 px-4 text-xs font-black text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  disabled={reconcileLoading || !reconcileTxnId.trim()}
+                  className="flex-1 py-2.5 px-4 text-xs font-black text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-40 transition"
                 >
-                  {reconcileLoading ? "Verifying..." : "Verify with SabPaisa"}
+                  {reconcileLoading ? "Verifying..." : "Verify with SabPaisa API"}
                 </button>
               </div>
             </form>
